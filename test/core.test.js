@@ -32,6 +32,27 @@ test('redirect state is single-use and expires', async () => {
   assert.throws(() => flow.consumeState(expired), /过期/);
 });
 
+test('redirect callback binds one safe target and rejects replay or credentials', async () => {
+  const flow = new RedirectFlow({ now: () => 1000 });
+  const state = flow.createState({ source: 'demo', serverUrl: 'http://127.0.0.1:20001', targetOrigin: 'http://127.0.0.1:20001' });
+  const callback = await flow.parseCallback(`crewrouter://connect/?state=${state}`, { allowLocalhost: true });
+  assert.equal(callback.serverUrl, 'http://127.0.0.1:20001/');
+  assert.throws(() => flow.parseCallback(`crewrouter://connect/?state=${state}`), /无效/);
+  const second = flow.createState({ serverUrl: 'http://127.0.0.1:20001', targetOrigin: 'http://127.0.0.1:20001' });
+  await assert.rejects(() => flow.parseCallback(`crewrouter://connect/?state=${second}&serverUrl=https%3A%2F%2Fother.example`, { allowLocalhost: true }), /不一致|DNS/);
+  const third = flow.createState({ serverUrl: 'http://127.0.0.1:20001' });
+  assert.throws(() => flow.parseCallback(`crewrouter://connect/?state=${third}&code=secret`, { allowLocalhost: true }), /凭据/);
+});
+
+test('Demo URL construction supports configured templates without inventing an endpoint', () => {
+  const flow = new RedirectFlow();
+  const result = flow.buildDemoUrl('https://demo.example/redirect?next={target}', { target: 'https://target.example', metadata: { serverUrl: 'https://target.example' } });
+  const url = new URL(result.url);
+  assert.equal(url.pathname, '/redirect');
+  assert.equal(url.searchParams.get('next'), 'https://target.example');
+  assert.match(url.searchParams.get('state'), /^[A-Za-z0-9_-]{40,}$/);
+});
+
 test('profile store recovers corruption and switches profiles', () => {
   const store = tempStore();
   assert.equal(store.load().profiles.length, 0);

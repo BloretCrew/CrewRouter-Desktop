@@ -1,6 +1,6 @@
 # CrewRouter Desktop
 
-Electron shell，复用 CrewRouter Web UI。Local 模式启动真正的 CrewRouter Server，Remote 模式直接承载 Personal/Team Server 页面。
+Electron shell，复用 CrewRouter Web UI。Local 模式启动真正的 CrewRouter Server，Remote 模式先进入已配置的官方 Demo 转向入口，再承载目标 Personal/Team Server 页面。
 
 ## Blora Design 2.0
 
@@ -21,7 +21,7 @@ Local 模式使用 `LocalServerManager` 在 `app.getPath('userData')` 下创建�
 
 在连接页输入 `http(s)` 地址。Desktop 请求 `/api/instance` 读取服务器权威的 runtime、edition 和认证能力：Personal Server 仅 Passport，Team Server 保持密码与飞书两种方式。远程页面自身负责登录，Desktop 不硬编码登录界面、不伪造 OAuth、不交换或保存 Token/API Key；Local 仅使用本实例的本地免交互认证。
 
-可选地设置 `CREWROUTER_DEMO_URL`，应用会生成带一次性、短时效 state 的转向地址；外部 `crewrouter://connect` 或 `crewrouter://oauth/callback` 回调必须携带由当前进程创建的 state，缺失、过期、未知和重放都会拒绝。Desktop 仅校验有限格式和目标地址；不接受凭据或敏感 query。生产远程目标统一经过 `url-policy` 的 DNS/内网校验。
+设置 `CREWROUTER_DEMO_URL` 后，Remote 点击会先读取目标 `/api/instance`，再生成绑定目标的一次性、短时效 state，并通过系统浏览器打开已配置的官方 Demo 转向入口。当前仓库未发现服务端 Demo redirect endpoint，因此不能编造 `/connect` 接口；Desktop 不会在 Demo 配置缺失时静默直连。受支持的 `crewrouter://connect/` 或 `crewrouter://oauth/callback` 回调必须携带当前进程创建的 state，缺失、过期、未知和重放都会拒绝。Desktop 仅校验目标 origin 和 URL policy，不接受 code、Token、API Key 或其他敏感参数。目标服务器负责自己的登录：Personal 使用 Passport，Team 保持服务端现有认证方式。详细边界见 [`docs/remote-redirect.md`](docs/remote-redirect.md)。
 
 ## 验证
 

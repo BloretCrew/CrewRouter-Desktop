@@ -84,7 +84,7 @@ formEl.addEventListener('submit', async (event) => {
     return;
   }
   busy(true);
-  setStatus('正在检查远程服务器…');
+  setStatus('正在通过官方 Demo 转向入口连接…');
   try { await api.connectRemote(url); } catch (error) { showError(error); }
 });
 

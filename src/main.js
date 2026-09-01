@@ -14,7 +14,7 @@ try { electron = require('electron'); } catch { electron = null; }
 
 const DEMO_URL = process.env.CREWROUTER_DEMO_URL || '';
 const rendererEntry = path.join(__dirname, 'renderer', 'index.html');
-const state = { mainWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, quitting: false };
+const state = { mainWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false };
 const redirectFlow = new RedirectFlow();
 
 function requestFetch(url, options = {}) {
@@ -48,18 +48,22 @@ async function connect(url, { local = false, name = local ? '本地 CrewRouter' 
   return currentStatus();
 }
 
+async function startRemoteRedirect(rawUrl) {
+  if (!DEMO_URL) fail('未配置官方 Demo 转向地址（CREWROUTER_DEMO_URL），不会绕过 Demo 直接连接。');
+  const target = await validateRemoteUrl(rawUrl);
+  if (!target.ok) fail(target.error);
+  const demo = await validateRemoteUrl(DEMO_URL);
+  if (!demo.ok) fail(`官方 Demo 地址无效：${demo.error}`);
+  const targetOrigin = target.url.origin;
+  const redirect = redirectFlow.buildDemoUrl(demo.url.toString(), { target: target.url.toString(), metadata: { source: 'demo', serverUrl: target.url.toString(), targetOrigin } });
+  sendStatus({ message: '正在打开官方 Demo 转向入口…', redirect: true, target: targetOrigin });
+  await electron.shell.openExternal(redirect.url);
+  return { ...currentStatus(), mode: 'redirecting', target: targetOrigin };
+}
+
 async function startLocal() {
   if (state.local) await state.local.stop();
-  state.local = new LocalServerManager({
-    mode: electron.app.isPackaged ? 'packaged' : 'development',
-    serverRoot: process.env.CREWROUTER_SERVER_ROOT,
-    resourceRoot: electron.app.isPackaged ? path.join(process.resourcesPath, 'server') : undefined,
-    userData: electron.app.getPath('userData'),
-    runtime: 'desktop-local',
-    edition: 'personal',
-    auth: { required: false, methods: ['local'] },
-    demo: false,
-  });
+  state.local = new LocalServerManager({ mode: electron.app.isPackaged ? 'packaged' : 'development', serverRoot: process.env.CREWROUTER_SERVER_ROOT, resourceRoot: electron.app.isPackaged ? path.join(process.resourcesPath, 'server') : undefined, userData: electron.app.getPath('userData'), runtime: 'desktop-local', edition: 'personal', auth: { required: false, methods: ['local'] }, demo: false });
   sendStatus({ message: '正在启动本地服务…' });
   const localStatus = await state.local.start();
   return connect(localStatus.baseUrl, { local: true });
@@ -68,27 +72,19 @@ async function startLocal() {
 async function handleProtocol(raw) {
   try {
     const callback = await redirectFlow.parseCallback(raw);
+    sendStatus({ message: '已从官方 Demo 返回，正在验证目标服务器…' });
     await connect(callback.serverUrl, { name: '协议连接' });
-  } catch (error) { sendStatus({ error: error.message }); }
+  } catch (error) { sendStatus({ error: `远程转向失败：${error.message}` }); }
 }
 
-function getWindowWebPreferences() {
-  return { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true };
-}
+function getWindowWebPreferences() { return { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true }; }
 function isRendererFrame(event) {
   let framePath = '';
-  try {
-    const frameUrl = new URL(event.senderFrame?.url || '');
-    if (frameUrl.protocol === 'file:') framePath = decodeURIComponent(frameUrl.pathname);
-  } catch {}
+  try { const frameUrl = new URL(event.senderFrame?.url || ''); if (frameUrl.protocol === 'file:') framePath = decodeURIComponent(frameUrl.pathname); } catch {}
   return Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && framePath === rendererEntry && !state.currentTarget);
 }
 function allowedNavigation(target) {
-  try {
-    const url = new URL(target);
-    if (url.protocol === 'file:') return url.pathname === rendererEntry && !state.currentTarget;
-    return Boolean(state.currentTarget && url.origin === state.currentTarget);
-  } catch { return false; }
+  try { const url = new URL(target); if (url.protocol === 'file:') return url.pathname === rendererEntry && !state.currentTarget; return Boolean(state.currentTarget && url.origin === state.currentTarget); } catch { return false; }
 }
 async function openSafeExternal(raw) {
   const result = await validateRemoteUrl(raw);
@@ -106,12 +102,8 @@ function createWindow() {
     const safeMessage = message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
     state.mainWindow.webContents.executeJavaScript(`document.body.innerHTML = ${JSON.stringify(`<main class="blora-load-error"><h1>CrewRouter Desktop</h1><p>${safeMessage}</p><p>请重启应用；如果问题持续，请查看应用日志。</p></main>`)}`, true).catch(() => {});
   });
-  state.mainWindow.webContents.on('render-process-gone', (_event, details) => {
-    console.error(`[renderer] render process gone: ${details.reason}`);
-  });
-  state.mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
-    if (level >= 2) console.error(`[renderer:${level}] ${message} (${sourceId}:${line})`);
-  });
+  state.mainWindow.webContents.on('render-process-gone', (_event, details) => { console.error(`[renderer] render process gone: ${details.reason}`); });
+  state.mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => { if (level >= 2) console.error(`[renderer:${level}] ${message} (${sourceId}:${line})`); });
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => { openSafeExternal(url).catch((error) => sendStatus({ error: error.message })); return { action: 'deny' }; });
   state.mainWindow.webContents.on('will-navigate', (event, url) => { if (allowedNavigation(url)) return; event.preventDefault(); openSafeExternal(url).catch((error) => sendStatus({ error: error.message })); });
   state.mainWindow.loadFile(rendererEntry);
@@ -120,7 +112,7 @@ function registerIpc() {
   const { ipcMain } = electron;
   ipcMain.handle('desktop:get-status', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return currentStatus(); });
   ipcMain.handle('desktop:choose-mode', async (event, requested) => { if (!isRendererFrame(event) || requested !== 'local') fail('不支持的模式'); return startLocal(); });
-  ipcMain.handle('desktop:connect-remote', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return connect(url); });
+  ipcMain.handle('desktop:connect-remote', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return startRemoteRedirect(url); });
   ipcMain.handle('desktop:open-external', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return openSafeExternal(url); });
   ipcMain.handle('desktop:list-profiles', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return state.connection.listProfiles(); });
   ipcMain.handle('desktop:switch-profile', async (event, id) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); const profile = state.connection.activeProfile(); if (!profile || profile.id !== id) state.connection.switchProfile(id); const active = state.connection.activeProfile(); return connect(active.url, { name: active.name }); });
@@ -136,11 +128,10 @@ function bootstrap() {
     registerIpc(); electron.app.setAsDefaultProtocolClient('crewrouter'); createWindow();
     const protocolArg = process.argv.find((value) => value.startsWith('crewrouter://'));
     if (protocolArg) handleProtocol(protocolArg);
-    if (DEMO_URL) { const redirect = redirectFlow.buildDemoUrl(DEMO_URL, { metadata: { source: 'demo' } }); electron.shell.openExternal(redirect.url).catch(() => {}); }
   });
   electron.app.on('before-quit', (event) => { if (state.local && !state.quitting) { event.preventDefault(); state.quitting = true; state.local.stop().finally(() => electron.app.quit()); } });
 }
 
 if (electron?.app) bootstrap();
 
-module.exports = { allowedNavigation, handleProtocol, createDemoState: (metadata) => redirectFlow.createState(metadata), currentStatus };
+module.exports = { allowedNavigation, handleProtocol, createDemoState: (metadata) => redirectFlow.createState(metadata), currentStatus, startRemoteRedirect };

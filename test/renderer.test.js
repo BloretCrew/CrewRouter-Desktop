@@ -29,7 +29,7 @@ test('renderer keeps visible content without CSS or preload bridge', () => {
   assert.match(html, /<main class="blora-shell"/);
   assert.match(html, /选择你的工作空间/);
   assert.match(html, /启动本地服务/);
-  assert.match(html, /连接远程服务/);
+  assert.match(html, /通过官方入口连接/);
   assert.match(js, /preload API unavailable/);
   assert.match(html, /runtime-error/);
   assert.match(html, /onerror="this.hidden=true/);
@@ -78,6 +78,7 @@ test('renderer guards repeated actions and renders server metadata/errors', () =
   assert.match(js, /status\.edition/);
   assert.match(js, /status\.auth/);
   assert.match(js, /status\.auth\.methods/);
+  assert.match(js, /正在通过官方 Demo 转向入口连接/);
   assert.match(js, /setStatus\(error\?\.message/);
 });
 
