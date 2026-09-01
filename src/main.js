@@ -34,7 +34,7 @@ function requestFetch(url, options = {}) {
 function sendStatus(payload) { state.mainWindow?.webContents.send('desktop:status', payload); }
 function fail(message) { throw new Error(message); }
 function currentStatus() {
-  return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, auth: state.instance?.auth || null, capabilities: state.instance?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null };
+  return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, auth: state.instance?.auth || null, demo: state.instance?.demo ?? null, capabilities: state.instance?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null };
 }
 
 async function connect(url, { local = false, name = local ? '本地 CrewRouter' : 'CrewRouter' } = {}) {
@@ -102,7 +102,7 @@ function createWindow() {
   const height = Number(process.env.CREWROUTER_WINDOW_HEIGHT) || 700;
   state.mainWindow = new electron.BrowserWindow({ width, height, webPreferences: getWindowWebPreferences() });
   state.mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
-    if (!isMainFrame) return;
+    if (!isMainFrame || errorCode === -3) return;
     const message = `启动页面加载失败（${errorCode}）：${errorDescription}`;
     console.error(`[renderer] ${message} ${validatedURL}`);
     const safeMessage = message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');

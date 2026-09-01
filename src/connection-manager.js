@@ -4,12 +4,14 @@ const crypto = require('node:crypto');
 const { ProfileStore } = require('./profile-store');
 const { validateRemoteUrl, redactUrl } = require('./url-policy');
 
-function parseInstanceResponse(body) {
+function parseInstanceResponse(body, { allowLocalRuntime = false } = {}) {
   if (!body || typeof body !== 'object') throw new Error('实例响应不是 JSON 对象');
   const source = body.data && typeof body.data === 'object' ? body.data : body;
   const edition = String(source.edition || '').toLowerCase();
-  const runtime = String(source.runtime || '').toLowerCase();
-  const auth = source.auth && typeof source.auth === 'object' ? source.auth : null;
+  const runtime = String(source.runtime || (allowLocalRuntime ? 'desktop-local' : '')).toLowerCase();
+  const auth = source.auth && typeof source.auth === 'object'
+    ? source.auth
+    : (allowLocalRuntime ? { required: false, methods: ['local'] } : null);
   const methods = Array.isArray(auth?.methods) ? auth.methods.filter((method) => typeof method === 'string') : null;
   if (!['personal', 'team'].includes(edition)) throw new Error('实例 edition 缺失或无效');
   if (!['server', 'desktop-local'].includes(runtime)) throw new Error('实例 runtime 缺失或无效');
@@ -41,7 +43,7 @@ class ConnectionManager {
     catch (error) { throw new Error(`连接失败（${redactUrl(url)}）：${error.message}`); }
     if (!response.ok) throw new Error(`/api/instance 返回 HTTP ${response.status}`);
     let body; try { body = await response.json(); } catch { throw new Error('/api/instance 返回无效 JSON'); }
-    return { ...parseInstanceResponse(body), url: result.url.toString() };
+    return { ...parseInstanceResponse(body, { allowLocalRuntime: options.allowLocalhost }), url: result.url.toString() };
   }
 
   async connect({ id = crypto.randomUUID(), name = 'CrewRouter', url, mode = 'remote', allowLocalhost = false } = {}) {

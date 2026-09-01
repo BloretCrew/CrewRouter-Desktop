@@ -25,6 +25,7 @@ test('main status exposes an explicit connect state', () => {
     runtime: null,
     edition: null,
     auth: null,
+    demo: null,
     capabilities: {},
     protocolVersion: null,
     profile: null,

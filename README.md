@@ -12,6 +12,7 @@ Electron shell，复用 CrewRouter Web UI。Local 模式启动真正的 CrewRout
 
 ```bash
 npm install
+# 可选：指向父项目；未设置时使用仓库内 staging/server
 CREWROUTER_SERVER_ROOT=/path/to/CrewRouter npm start
 ```
 
@@ -34,7 +35,7 @@ npm run test:local-server
 npm run build
 ```
 
-`npm test` 覆盖 URL policy、RedirectFlow、ProfileStore、ConnectionManager、LocalServerManager，以及无需 Electron 的主进程入口。`test:local-server` 需要父项目依赖、PostgreSQL 和 `CREWROUTER_SERVER_ROOT=/data/CrewRouter`，会使用临时 userData、动态非生产端口并在结束时停止服务。未安装依赖时 `npm run build` 会因缺少 `electron-builder` 失败；当前环境未进行 Electron GUI/E2E 或跨平台打包验证。
+`npm test` 覆盖 URL policy、RedirectFlow、ProfileStore、ConnectionManager、LocalServerManager，以及无需 Electron 的主进程入口。`test:packaged-server` 使用仓库内 `staging/server`、临时 PostgreSQL、临时 userData 和动态非生产端口验证完整 Server，并在结束时停止服务；开发模式也可用 `CREWROUTER_SERVER_ROOT` 覆盖 staged fallback。正式 Electron 运行从 `resources/server` 查找 bundle。
 
 ## 打包与交付
 
