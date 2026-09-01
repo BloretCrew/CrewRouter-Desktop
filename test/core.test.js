@@ -42,18 +42,27 @@ test('profile store recovers corruption and switches profiles', () => {
   assert.equal(store.load().profiles.length, 0);
 });
 
-test('/api/instance parses personal/team and rejects invalid responses', () => {
-  assert.equal(parseInstanceResponse({ edition: 'personal' }).edition, 'personal');
-  assert.equal(parseInstanceResponse({ data: { edition: 'team' } }).edition, 'team');
-  assert.throws(() => parseInstanceResponse({ edition: 'enterprise' }), /无效/);
-  assert.throws(() => parseInstanceResponse({}), /缺失/);
+test('/api/instance parses authoritative runtime and auth metadata', () => {
+  const local = parseInstanceResponse({ runtime: 'desktop-local', edition: 'personal', auth: { required: false, methods: ['local'] } });
+  assert.equal(local.runtime, 'desktop-local');
+  assert.deepEqual(local.auth, { required: false, methods: ['local'] });
+  const personal = parseInstanceResponse({ runtime: 'server', edition: 'personal', auth: { required: true, methods: ['passport'] } });
+  assert.deepEqual(personal.auth.methods, ['passport']);
+  const team = parseInstanceResponse({ runtime: 'server', edition: 'team', auth: { required: true, methods: ['password', 'feishu'] } });
+  assert.deepEqual(team.auth.methods, ['password', 'feishu']);
+  assert.throws(() => parseInstanceResponse({ edition: 'personal' }), /runtime/);
+  assert.throws(() => parseInstanceResponse({ runtime: 'server', edition: 'personal', auth: { required: true, methods: ['feishu'] } }), /Passport/);
+  assert.throws(() => parseInstanceResponse({ runtime: 'desktop-local', edition: 'personal', auth: { required: true, methods: ['local'] } }), /Local/);
+  assert.throws(() => parseInstanceResponse({ runtime: 'server', edition: 'team', auth: { required: true, methods: ['token'] } }), /无效/);
 });
 
 test('connection manager saves metadata without tokens', async () => {
   const store = tempStore();
-  const manager = new ConnectionManager({ store, fetchImpl: async (url) => ({ ok: true, async json() { return { edition: 'team', capabilities: { sso: true }, protocolVersion: '1' }; } }) });
+  const manager = new ConnectionManager({ store, fetchImpl: async (url) => ({ ok: true, async json() { return { runtime: 'server', edition: 'team', auth: { required: true, methods: ['password', 'feishu'] }, capabilities: { sso: true }, protocolVersion: '1' }; } }) });
   const profile = await manager.connect({ id: 'team', name: 'Team', url: 'http://localhost:20001', allowLocalhost: true });
   assert.equal(profile.edition, 'team');
+  assert.equal(profile.runtime, 'server');
+  assert.deepEqual(profile.auth.methods, ['password', 'feishu']);
   assert.equal(manager.activeProfile().id, 'team');
   assert.equal(JSON.stringify(store.load()).includes('token'), false);
 });

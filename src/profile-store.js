@@ -12,7 +12,8 @@ class ProfileStore {
   _normalize(raw) {
     if (!raw || typeof raw !== 'object' || raw.schemaVersion !== SCHEMA_VERSION || !Array.isArray(raw.profiles)) return emptyState();
     const profiles = raw.profiles.filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string' && typeof p.url === 'string')
-      .map((p) => ({ id: p.id, name: p.name, url: p.url, mode: p.mode || 'remote', edition: p.edition || null,
+      .map((p) => ({ id: p.id, name: p.name, url: p.url, mode: p.mode || 'remote', runtime: p.runtime === 'desktop-local' || p.runtime === 'server' ? p.runtime : null, edition: p.edition || null,
+        auth: p.auth && typeof p.auth === 'object' && typeof p.auth.required === 'boolean' && Array.isArray(p.auth.methods) ? { required: p.auth.required, methods: p.auth.methods.filter((method) => typeof method === 'string') } : null,
         capabilities: p.capabilities && typeof p.capabilities === 'object' ? p.capabilities : {},
         protocolVersion: p.protocolVersion || null, lastConnectedAt: p.lastConnectedAt || null }));
     const activeProfileId = profiles.some((p) => p.id === raw.activeProfileId) ? raw.activeProfileId : (profiles[0]?.id || null);

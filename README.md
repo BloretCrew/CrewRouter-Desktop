@@ -9,11 +9,11 @@ npm install
 CREWROUTER_SERVER_ROOT=/path/to/CrewRouter npm start
 ```
 
-Local 模式使用 `LocalServerManager` 在 `app.getPath('userData')` 下创建隔离的 runtime/config、data、logs，清理继承的 CR 配置/数据库环境变量并选择动态回环端口；退出时只停止本实例持有的子进程。服务端仍需要 PostgreSQL；Desktop 不修改父项目配置，也不会触碰生产端口。可通过 `CREWROUTER_SERVER_ROOT` 指向父项目，打包后则从 `resources/server` 查找 staged release。就绪检查依次验证 `/api/version`、`/api/setup/status` 和 `/api/instance`。
+Local 模式使用 `LocalServerManager` 在 `app.getPath('userData')` 下创建隔离的 runtime/config、data、logs，启动完整 CrewRouter Server（不是 demo/mock），明确使用 `runtime=desktop-local`、`edition=personal` 和 `auth.required=false` 的本地身份，因此不需要用户交互登录。服务端仍保留 login-report 和 stats-report 模块及其启用配置；这表示实例上报逻辑不因免登录而关闭，不会伪造用户登录事件。服务只监听 `127.0.0.1`，清理继承的 CR 配置/数据库环境变量并选择动态回环端口；退出时只停止本实例持有的子进程。服务端仍需要 PostgreSQL；Desktop 不修改父项目配置，也不会触碰生产端口。可通过 `CREWROUTER_SERVER_ROOT` 指向父项目，打包后则从 `resources/server` 查找 staged release。就绪检查依次验证 `/api/version`、`/api/setup/status` 和 `/api/instance`。
 
 ## Remote 与 Demo 转向
 
-在连接页输入 `http(s)` 地址。Desktop 请求 `/api/instance` 自动识别 `personal` 或 `team`，edition/capabilities 以服务器为权威。远程页面自身负责登录，Desktop 不伪造 OAuth、不交换或保存 Token/API Key。
+在连接页输入 `http(s)` 地址。Desktop 请求 `/api/instance` 读取服务器权威的 runtime、edition 和认证能力：Personal Server 仅 Passport，Team Server 保持密码与飞书两种方式。远程页面自身负责登录，Desktop 不硬编码登录界面、不伪造 OAuth、不交换或保存 Token/API Key；Local 仅使用本实例的本地免交互认证。
 
 可选地设置 `CREWROUTER_DEMO_URL`，应用会生成带一次性、短时效 state 的转向地址；外部 `crewrouter://connect` 或 `crewrouter://oauth/callback` 回调必须携带由当前进程创建的 state，缺失、过期、未知和重放都会拒绝。Desktop 仅校验有限格式和目标地址；不接受凭据或敏感 query。生产远程目标统一经过 `url-policy` 的 DNS/内网校验。
 

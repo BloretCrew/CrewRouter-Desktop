@@ -37,8 +37,12 @@ async function createRuntimeConfig(userData, overrides = {}) {
   const configPath = path.join(runtimeDir, 'config.json');
   const config = {
     app: { name: 'CrewRouter Desktop', host: '127.0.0.1', port: 0 },
-    demo: true,
+    runtime: 'desktop-local',
     edition: 'personal',
+    auth: { required: false, methods: ['local'] },
+    loginReport: { enabled: true },
+    statsReport: { enabled: true },
+    demo: false,
     ...overrides,
   };
   await fsp.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, { mode: 0o600 });
@@ -87,7 +91,7 @@ class LocalServerManager {
   constructor(options = {}) {
     this.options = { mode: 'development', host: '127.0.0.1', startupTimeoutMs: 30000, pollIntervalMs: 150, requestTimeoutMs: 1500, ...options };
     this.child = null;
-    this.status = { pid: null, port: null, baseUrl: null, ready: false, edition: null, version: null };
+    this.status = { pid: null, port: null, baseUrl: null, ready: false, runtime: null, edition: null, auth: null, capabilities: {}, version: null };
     this.runtime = null;
   }
 
@@ -95,17 +99,23 @@ class LocalServerManager {
     if (this.child) throw new Error('Local server is already running');
     const opts = this.options;
     const port = opts.port || await (opts.findFreePort || findFreePort)(opts.host);
-    this.runtime = opts.runtime || await createRuntimeConfig(opts.userData || path.join(os.tmpdir(), 'crewrouter-desktop'), opts.config || {});
+    this.runtime = await createRuntimeConfig(opts.userData || path.join(os.tmpdir(), 'crewrouter-desktop'), {
+      ...(opts.config || {}),
+      ...(typeof opts.runtime === 'string' ? { runtime: opts.runtime } : {}),
+      ...(opts.edition ? { edition: opts.edition } : {}),
+      ...(opts.auth ? { auth: opts.auth } : {}),
+      ...(opts.demo !== undefined ? { demo: opts.demo } : {}),
+    });
     const entry = resolveServerEntry(opts.mode, opts);
     const logPath = path.join(this.runtime.logsDir, 'server.log');
     const logStream = fs.createWriteStream(logPath, { flags: 'a', mode: 0o600 });
     const inherited = { ...process.env };
     // Do not let a desktop child accidentally use the parent's production listener/config.
     for (const key of Object.keys(inherited)) if (/^CR_(APP_PORT|APP_HOST|CONFIG|DATA|LOG|DB_|EDITION|DEMO|ENV)$/.test(key)) delete inherited[key];
-    const env = { ...inherited, ...(opts.env || {}), CR_APP_HOST: opts.host, CR_APP_PORT: String(port), CR_CONFIG_PATH: this.runtime.configPath, CR_DATA_DIR: this.runtime.dataDir, CR_LOG_DIR: this.runtime.logsDir, CR_RUNTIME: 'desktop-local', CR_EDITION: opts.edition || 'personal', CR_DEMO: opts.demo === undefined ? 'true' : String(opts.demo) };
+    const env = { ...inherited, ...(opts.env || {}), CR_APP_HOST: opts.host, CR_APP_PORT: String(port), CR_CONFIG_PATH: this.runtime.configPath, CR_DATA_DIR: this.runtime.dataDir, CR_LOG_DIR: this.runtime.logsDir, CR_RUNTIME: this.runtime.config.runtime || 'desktop-local', CR_EDITION: this.runtime.config.edition || 'personal', CR_AUTH_REQUIRED: String(this.runtime.config.auth?.required ?? false), CR_AUTH_METHODS: Array.isArray(this.runtime.config.auth?.methods) ? this.runtime.config.auth.methods.join(',') : 'local', CR_LOGIN_REPORT_ENABLED: String(this.runtime.config.loginReport?.enabled ?? true), CR_STATS_REPORT_ENABLED: String(this.runtime.config.statsReport?.enabled ?? true), CR_DEMO: String(this.runtime.config.demo === true) };
     const child = (opts.spawn || spawn)(process.execPath, [entry], { cwd: this.runtime.runtimeDir, env, stdio: ['ignore', 'pipe', 'pipe'] });
     this.child = child;
-    this.status = { pid: child.pid || null, port, baseUrl: `http://${opts.host}:${port}`, ready: false, edition: null, version: null };
+    this.status = { pid: child.pid || null, port, baseUrl: `http://${opts.host}:${port}`, ready: false, runtime: null, edition: null, auth: null, capabilities: {}, version: null };
     const write = (chunk) => logStream.write(redact(chunk));
     child.stdout?.on('data', write); child.stderr?.on('data', write);
     let exitError;
@@ -133,7 +143,12 @@ class LocalServerManager {
         if (!setup.body || typeof setup.body !== 'object' || typeof setup.body.needsSetup !== 'boolean') throw new Error('Setup status is invalid');
         this.status.setup = { needsSetup: setup.body.needsSetup };
         this.status.version = version.body.version || null;
-        this.status.edition = instance.body.edition || null;
+        const metadata = instance.body.data && typeof instance.body.data === 'object' ? instance.body.data : instance.body;
+        this.status.runtime = metadata.runtime || null;
+        this.status.edition = metadata.edition || null;
+        this.status.auth = metadata.auth || null;
+        this.status.capabilities = metadata.capabilities || {};
+        if (this.status.runtime !== 'desktop-local' || this.status.edition !== 'personal' || this.status.auth?.required !== false || JSON.stringify(this.status.auth?.methods) !== JSON.stringify(['local'])) throw new Error('Local server metadata is not desktop-local personal local-auth');
         this.status.ready = true;
         return this.getStatus();
       } catch (error) { lastError = error; await new Promise((resolve) => setTimeout(resolve, this.options.pollIntervalMs)); }

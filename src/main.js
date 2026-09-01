@@ -34,7 +34,7 @@ function requestFetch(url, options = {}) {
 function sendStatus(payload) { state.mainWindow?.webContents.send('desktop:status', payload); }
 function fail(message) { throw new Error(message); }
 function currentStatus() {
-  return { mode: state.mode, target: state.currentTarget, edition: state.instance?.edition || null, capabilities: state.instance?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null };
+  return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, auth: state.instance?.auth || null, capabilities: state.instance?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null };
 }
 
 async function connect(url, { local = false, name = local ? '本地 CrewRouter' : 'CrewRouter' } = {}) {
@@ -55,7 +55,10 @@ async function startLocal() {
     serverRoot: process.env.CREWROUTER_SERVER_ROOT,
     resourceRoot: electron.app.isPackaged ? path.join(process.resourcesPath, 'server') : undefined,
     userData: electron.app.getPath('userData'),
-    demo: true,
+    runtime: 'desktop-local',
+    edition: 'personal',
+    auth: { required: false, methods: ['local'] },
+    demo: false,
   });
   sendStatus({ message: '正在启动本地服务…' });
   const localStatus = await state.local.start();

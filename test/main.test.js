@@ -15,7 +15,9 @@ test('main status exposes an explicit connect state', () => {
   assert.deepEqual(main.currentStatus(), {
     mode: 'connect',
     target: null,
+    runtime: null,
     edition: null,
+    auth: null,
     capabilities: {},
     protocolVersion: null,
     profile: null,
