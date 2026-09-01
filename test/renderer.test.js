@@ -52,7 +52,8 @@ test('renderer uses official Blora 2 structure without the 1.x API or local toke
   assert.match(html, /class="blora-shell"/);
   assert.match(html, /class="blora-card blora-card--local"/);
   assert.match(html, /class="blora-button" data-variant="primary" data-block/);
-  assert.match(html, /class="blora-button" data-variant="secondary" data-block/);
+  assert.match(html, /class="blora-button" data-variant="primary" data-block/);
+  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 2);
   assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js/);
   assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/);
 });
