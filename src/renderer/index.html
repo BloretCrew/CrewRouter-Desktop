@@ -5,15 +5,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#17161C">
   <title>CrewRouter Desktop · Blora Design</title>
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/blora.css">
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/tokens.dark.css">
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/card/card.css">
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/badge/badge.css">
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/input/input.css">
-  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/button/button.css">
+  <link rel="stylesheet" href="vendor/blora-design/blora.css">
+  <link rel="stylesheet" href="vendor/blora-design/tokens.dark.css">
+  <link rel="stylesheet" href="vendor/blora-design/components/card/card.css">
+  <link rel="stylesheet" href="vendor/blora-design/components/badge/badge.css">
+  <link rel="stylesheet" href="vendor/blora-design/components/input/input.css">
+  <link rel="stylesheet" href="vendor/blora-design/components/button/button.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <noscript><p class="blora-fallback-message">CrewRouter Desktop 需要启用 JavaScript。</p></noscript>
   <main class="blora-shell" aria-labelledby="page-title">
     <header class="blora-header">
       <a class="blora-brand" href="#page-title" aria-label="CrewRouter Desktop 首页">
@@ -61,6 +62,7 @@
     </form>
 
     <div class="blora-feedback" aria-live="polite" aria-atomic="true">
+      <span id="runtime-error" class="blora-runtime-error" role="alert"></span>
       <span class="blora-status-dot" aria-hidden="true"></span><p id="status" role="status">请选择一个连接方式</p>
     </div>
     <footer class="blora-footer"><small>远程页面负责登录；Desktop 不接管 OAuth、Token 或 API Key。</small><button id="quit" class="blora-quit" type="button">退出应用 <span aria-hidden="true">⌘Q</span></button></footer>

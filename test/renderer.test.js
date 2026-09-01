@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const rendererDir = path.join(__dirname, '..', 'src', 'renderer');
 const packageRoot = path.join(__dirname, '..', 'node_modules', '@bloret-crew', 'blora-design');
+const vendorRoot = path.join(rendererDir, 'vendor', 'blora-design');
 const html = fs.readFileSync(path.join(rendererDir, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(rendererDir, 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(rendererDir, 'renderer.js'), 'utf8');
@@ -17,9 +18,22 @@ test('renderer resolves the published Blora 2 package and loads its CSS', () => 
   assert.equal(packageJson.type, 'module');
   assert.equal(require.resolve('@bloret-crew/blora-design/package.json'), path.join(packageRoot, 'package.json'));
   for (const file of ['dist/blora.css', 'dist/tokens.dark.css', 'dist/components/card/card.css', 'dist/components/badge/badge.css', 'dist/components/input/input.css', 'dist/components/button/button.css']) {
+    const vendorFile = file.replace(/^dist\//, '');
     assert.equal(fs.existsSync(path.join(packageRoot, file)), true, file);
-    assert.match(html, new RegExp(file.replaceAll('/', '\\/')));
+    assert.equal(fs.existsSync(path.join(vendorRoot, vendorFile)), true, `vendor/${vendorFile}`);
+    assert.match(html, new RegExp(`vendor\\/blora-design\\/${vendorFile.replaceAll('/', '\\/')}`));
   }
+});
+
+test('renderer keeps visible content without CSS or preload bridge', () => {
+  assert.match(html, /<main class="blora-shell"/);
+  assert.match(html, /选择你的工作空间/);
+  assert.match(html, /启动本地服务/);
+  assert.match(html, /连接远程服务/);
+  assert.match(js, /preload API unavailable/);
+  assert.match(html, /runtime-error/);
+  assert.match(html, /onerror="this.hidden=true/);
+  assert.match(html, /<span hidden>⌂<\/span>/);
 });
 
 test('renderer uses official Blora 2 structure without the 1.x API or local token fallback', () => {
@@ -52,4 +66,11 @@ test('renderer guards repeated actions and renders server metadata/errors', () =
   assert.match(js, /status\.auth/);
   assert.match(js, /status\.auth\.methods/);
   assert.match(js, /setStatus\(error\?\.message/);
+});
+
+test('main registers visible diagnostics for failed renderer loads', () => {
+  const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
+  assert.match(mainSource, /did-fail-load/);
+  assert.match(mainSource, /render-process-gone/);
+  assert.match(mainSource, /console-message/);
 });

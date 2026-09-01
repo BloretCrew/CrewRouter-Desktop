@@ -8,6 +8,17 @@
 
 * { box-sizing: border-box; }
 
+.blora-fallback-message {
+  margin: 24px auto;
+  width: min(680px, calc(100% - 48px));
+  padding: 16px 20px;
+  border: 1px solid #786f75;
+  border-radius: 12px;
+  color: #f8f2f4;
+  background: #222128;
+  font: 14px/1.5 "Segoe UI", sans-serif;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -60,8 +71,9 @@ button, input { font: inherit; }
 .blora-icon-wrap { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 0 20px; border: 1px solid var(--blora-color-border-subtle); border-radius: var(--blora-radius-lg); color: var(--blora-color-action-primary-default); background: var(--blora-color-surface-raised); }
 .blora-icon-wrap .sf-icon { display: block; width: 20px; height: 20px; object-fit: contain; }
 .blora-icon-wrap .sf-icon + span { display: none; }
-.blora-panel h2 { margin: 0; font-size: 28px; letter-spacing: -.04em; }
-.blora-panel > p { max-width: 410px; margin: 8px 0 0; color: var(--blora-color-text-muted); font-size: 13px; line-height: 1.6; }
+.blora-icon-wrap .sf-icon[hidden] + span { display: inline; }
+.blora-card h2 { margin: 0; font-size: 28px; letter-spacing: -.04em; }
+.blora-card > p { max-width: 410px; margin: 8px 0 0; color: var(--blora-color-text-muted); font-size: 13px; line-height: 1.6; }
 .blora-feature-list { display: flex; gap: 18px; margin: 22px 0 26px; padding: 0; list-style: none; color: var(--blora-color-text-muted); font-size: 11px; }
 .blora-feature-list li { display: flex; gap: 6px; align-items: center; }
 .blora-feature-list li span { color: var(--blora-color-action-primary-default); }
@@ -73,6 +85,9 @@ button, input { font: inherit; }
 .blora-button-arrow { margin-left: auto; font-size: 18px; font-weight: 400; }
 .blora-feedback { display: flex; align-items: center; gap: 10px; min-height: 55px; margin-top: 18px; padding: 0 4px; }
 .blora-feedback p { margin: 0; color: var(--blora-color-text-muted); font-size: 12px; }
+.blora-runtime-error { color: var(--blora-color-status-danger); font-size: 12px; }
+.blora-load-error { margin: 80px auto; width: min(680px, calc(100% - 48px)); padding: 32px; color: #f8f2f4; background: #222128; border: 1px solid #d27779; border-radius: 16px; font: 16px/1.6 "Segoe UI", sans-serif; }
+.blora-load-error h1 { margin-top: 0; }
 .blora-status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blora-color-action-primary-default); box-shadow: 0 0 14px var(--blora-color-action-primary-default); }
 .blora-feedback[data-state="error"] .blora-status-dot { background: var(--blora-color-status-danger); box-shadow: 0 0 14px var(--blora-color-status-danger); }
 .blora-feedback[data-state="success"] .blora-status-dot { background: var(--blora-color-status-success); box-shadow: 0 0 14px var(--blora-color-status-success); }

@@ -1,6 +1,20 @@
 'use strict';
 
 const api = window.crewrouterDesktop;
+const runtimeError = document.getElementById('runtime-error');
+
+function showRuntimeError(message) {
+  if (runtimeError) runtimeError.textContent = message;
+  const status = document.getElementById('status');
+  const feedback = document.querySelector('.blora-feedback');
+  if (status) status.textContent = message;
+  if (feedback) feedback.dataset.state = 'error';
+}
+
+if (!api) {
+  showRuntimeError('桌面桥接加载失败，请重启应用后重试。');
+  throw new Error('CrewRouter Desktop preload API unavailable');
+}
 const formEl = document.getElementById('connection-form');
 const statusEl = document.getElementById('status');
 const feedbackEl = document.querySelector('.blora-feedback');
@@ -76,4 +90,4 @@ formEl.addEventListener('submit', async (event) => {
 
 quitButton.addEventListener('click', () => { if (!isBusy) api.quit(); });
 api.onStatus(describeStatus);
-api.getStatus().then(describeStatus).catch(() => {});
+api.getStatus().then(describeStatus).catch(showError);

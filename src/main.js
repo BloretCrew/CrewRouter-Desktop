@@ -89,6 +89,19 @@ async function openSafeExternal(raw) {
 }
 function createWindow() {
   state.mainWindow = new electron.BrowserWindow({ width: 960, height: 700, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  state.mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+    if (!isMainFrame) return;
+    const message = `启动页面加载失败（${errorCode}）：${errorDescription}`;
+    console.error(`[renderer] ${message} ${validatedURL}`);
+    const safeMessage = message.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
+    state.mainWindow.webContents.executeJavaScript(`document.body.innerHTML = ${JSON.stringify(`<main class="blora-load-error"><h1>CrewRouter Desktop</h1><p>${safeMessage}</p><p>请重启应用；如果问题持续，请查看应用日志。</p></main>`)}`, true).catch(() => {});
+  });
+  state.mainWindow.webContents.on('render-process-gone', (_event, details) => {
+    console.error(`[renderer] render process gone: ${details.reason}`);
+  });
+  state.mainWindow.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) console.error(`[renderer:${level}] ${message} (${sourceId}:${line})`);
+  });
   state.mainWindow.webContents.setWindowOpenHandler(({ url }) => { openSafeExternal(url).catch((error) => sendStatus({ error: error.message })); return { action: 'deny' }; });
   state.mainWindow.webContents.on('will-navigate', (event, url) => { if (allowedNavigation(url)) return; event.preventDefault(); openSafeExternal(url).catch((error) => sendStatus({ error: error.message })); });
   state.mainWindow.loadFile(rendererEntry);
