@@ -38,9 +38,29 @@
           <span class="mode-option__copy"><strong>本地使用</strong><small>一键启动本地服务，无需登录</small></span>
           <span class="mode-option__arrow" aria-hidden="true">→</span>
         </button>
-        <button id="remote-choice" class="blora-card mode-option" type="button" aria-controls="remote-step">
+        <button id="remote-choice" class="blora-card mode-option" type="button" aria-controls="remote-choice-step">
           <span class="mode-option__icon" aria-hidden="true">◎</span>
-          <span class="mode-option__copy"><strong>连接服务器</strong><small>连接已有服务器，登录由服务器处理</small></span>
+          <span class="mode-option__copy"><strong>连接服务器</strong><small>选择官方站或自定义服务器地址</small></span>
+          <span class="mode-option__arrow" aria-hidden="true">→</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="remote-choice-step" class="remote-step" aria-labelledby="remote-choice-heading" hidden>
+      <div class="step-heading-row">
+        <div><p class="blora-eyebrow">第二步</p><h2 id="remote-choice-heading">连接服务器</h2></div>
+        <button id="choice-back" class="blora-text-button" type="button">返回</button>
+      </div>
+      <p class="remote-description">Personal / Team 由目标服务器自动识别，登录由目标服务器负责。</p>
+      <div class="mode-options remote-options">
+        <button id="official-remote" class="blora-card mode-option" type="button">
+          <span class="mode-option__icon" aria-hidden="true">↗</span>
+          <span class="mode-option__copy"><strong>通过官方站连接</strong><small>打开 crewrouter.bloret.net，由官方 Demo 负责转向</small></span>
+          <span class="mode-option__arrow" aria-hidden="true">→</span>
+        </button>
+        <button id="custom-remote" class="blora-card mode-option" type="button" aria-controls="remote-step">
+          <span class="mode-option__icon" aria-hidden="true">⌕</span>
+          <span class="mode-option__copy"><strong>输入服务器地址</strong><small>自己填写服务器地址，仍然通过官方 Demo 转向</small></span>
           <span class="mode-option__arrow" aria-hidden="true">→</span>
         </button>
       </div>
@@ -48,15 +68,15 @@
 
     <section id="remote-step" class="remote-step" aria-labelledby="remote-heading" hidden>
       <div class="step-heading-row">
-        <div><p class="blora-eyebrow">第二步</p><h2 id="remote-heading">连接已有服务器</h2></div>
+        <div><p class="blora-eyebrow">第三步</p><h2 id="remote-heading">输入服务器地址</h2></div>
         <button id="back" class="blora-text-button" type="button">返回</button>
       </div>
       <form id="connection-form" novalidate>
         <label class="blora-label" for="remote-url">服务器地址</label>
         <input id="remote-url" class="blora-input" type="url" inputmode="url" placeholder="https://server.example.com" autocomplete="url" aria-describedby="url-hint url-error" aria-invalid="false">
-        <p id="url-hint" class="blora-input-hint">Personal 或 Team 由目标服务器自动识别。</p>
+        <p id="url-hint" class="blora-input-hint">Personal 或 Team 由目标服务器自动识别，登录由目标服务器负责。</p>
         <p id="url-error" class="blora-field-error" role="alert"></p>
-        <button id="remote" class="blora-button" data-variant="primary" data-block type="submit"><span>连接</span><span class="blora-button-arrow" aria-hidden="true">↗</span></button>
+        <button id="remote" class="blora-button" data-variant="primary" data-block type="submit"><span>通过官方 Demo 连接</span><span class="blora-button-arrow" aria-hidden="true">↗</span></button>
       </form>
     </section>
 

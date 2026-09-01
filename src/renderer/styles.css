@@ -26,6 +26,9 @@ button, input { font: inherit; }
 .mode-option__copy small { color: var(--blora-color-text-muted); font-size: var(--blora-text-xs); line-height: var(--blora-leading-normal); }
 .mode-option__arrow { margin-left: auto; padding-left: var(--blora-space-3); color: var(--blora-color-action-primary-default); font-size: var(--blora-text-xl); }
 .remote-step { max-width: 620px; padding: var(--blora-space-5); border: var(--blora-border-subtle); border-radius: var(--blora-radius-lg); background: var(--blora-color-surface-raised); }
+.remote-description { margin: var(--blora-space-3) 0 var(--blora-space-4); color: var(--blora-color-text-muted); font-size: var(--blora-text-sm); line-height: var(--blora-leading-normal); }
+.remote-options { grid-template-columns: 1fr; }
+.remote-options .mode-option { min-height: 96px; }
 .step-heading-row h2 { margin: 0; font-size: var(--blora-text-2xl); letter-spacing: -.04em; }
 .blora-text-button { border: 0; padding: var(--blora-space-2) 0; color: var(--blora-color-text-muted); background: transparent; cursor: pointer; }
 .blora-text-button:hover, .blora-text-button:focus-visible { color: var(--blora-color-text-primary); }

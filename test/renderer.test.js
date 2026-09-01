@@ -45,8 +45,12 @@ test('renderer keeps the desktop viewport layout responsive', () => {
   assert.match(css, /overflow-wrap: anywhere/);
   assert.match(html, /class="connection-hero"/);
   assert.match(html, /class="blora-card mode-option"/);
+  assert.match(html, /id="remote-choice-step"[^>]+hidden/);
+  assert.match(html, /id="remote-choice"[^>]+aria-controls="remote-choice-step"/);
+  assert.match(html, /id="official-remote"[^>]+class="blora-card mode-option"/);
+  assert.match(html, /通过官方站连接/);
+  assert.match(html, /id="custom-remote"[^>]+class="blora-card mode-option"/);
   assert.match(html, /id="remote-step"[^>]+hidden/);
-  assert.match(html, /id="remote-choice"[^>]+aria-controls="remote-step"/);
   assert.match(html, /id="remote-url"[^>]+class="blora-input"/);
   assert.match(html, /id="local"[^>]+class="blora-card mode-option"/);
   assert.match(html, /id="remote"[^>]+class="blora-button"/);

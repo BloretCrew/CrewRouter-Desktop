@@ -12,7 +12,7 @@ const { validateRemoteUrl } = require('./url-policy');
 let electron;
 try { electron = require('electron'); } catch { electron = null; }
 
-const DEMO_URL = process.env.CREWROUTER_DEMO_URL || '';
+const DEMO_URL = process.env.CREWROUTER_DEMO_URL || 'https://crewrouter.bloret.net';
 const rendererEntry = path.join(__dirname, 'renderer', 'index.html');
 const state = { mainWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false };
 const redirectFlow = new RedirectFlow();
@@ -50,12 +50,18 @@ async function connect(url, { local = false, name = local ? '本地 CrewRouter' 
 
 async function startRemoteRedirect(rawUrl) {
   if (!DEMO_URL) fail('未配置官方 Demo 转向地址（CREWROUTER_DEMO_URL），不会绕过 Demo 直接连接。');
-  const target = await validateRemoteUrl(rawUrl);
-  if (!target.ok) fail(target.error);
   const demo = await validateRemoteUrl(DEMO_URL);
   if (!demo.ok) fail(`官方 Demo 地址无效：${demo.error}`);
-  const targetOrigin = target.url.origin;
-  const redirect = redirectFlow.buildDemoUrl(demo.url.toString(), { target: target.url.toString(), metadata: { source: 'demo', serverUrl: target.url.toString(), targetOrigin } });
+  let targetUrl = '';
+  let targetOrigin = null;
+  if (rawUrl) {
+    const target = await validateRemoteUrl(rawUrl);
+    if (!target.ok) fail(target.error);
+    targetUrl = target.url.toString();
+    targetOrigin = target.url.origin;
+  }
+  const metadata = { source: 'demo', ...(targetUrl ? { serverUrl: targetUrl, targetOrigin } : {}) };
+  const redirect = redirectFlow.buildDemoUrl(demo.url.toString(), { target: targetUrl, metadata });
   sendStatus({ message: '正在打开官方 Demo 转向入口…', redirect: true, target: targetOrigin });
   await electron.shell.openExternal(redirect.url);
   return { ...currentStatus(), mode: 'redirecting', target: targetOrigin };

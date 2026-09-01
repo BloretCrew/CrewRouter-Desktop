@@ -16,18 +16,32 @@ const urlEl = document.getElementById('remote-url');
 const urlErrorEl = document.getElementById('url-error');
 const localButton = document.getElementById('local');
 const remoteChoice = document.getElementById('remote-choice');
+const remoteChoiceStep = document.getElementById('remote-choice-step');
+const officialRemote = document.getElementById('official-remote');
+const customRemote = document.getElementById('custom-remote');
 const remoteStep = document.getElementById('remote-step');
 const modeStep = document.getElementById('mode-step');
+const choiceBackButton = document.getElementById('choice-back');
 const backButton = document.getElementById('back');
 const remoteButton = document.getElementById('remote');
 const quitButton = document.getElementById('quit');
 let isBusy = false;
 function setStatus(message, state = 'idle') { statusEl.textContent = message; feedbackEl.dataset.state = state; }
-function busy(value) { isBusy = value; localButton.disabled = value; remoteChoice.disabled = value; backButton.disabled = value; remoteButton.disabled = value; quitButton.disabled = value; [localButton, remoteChoice, remoteButton].forEach((button) => button.setAttribute('aria-busy', String(value))); }
+function busy(value) {
+  isBusy = value;
+  [localButton, remoteChoice, officialRemote, customRemote, choiceBackButton, backButton, remoteButton, quitButton].forEach((button) => {
+    if (button) button.disabled = value;
+  });
+  [localButton, remoteChoice, officialRemote, customRemote, remoteButton].forEach((button) => {
+    if (button) button.setAttribute('aria-busy', String(value));
+  });
+}
 function setUrlError(message = '') { urlErrorEl.textContent = message; urlEl.setAttribute('aria-invalid', message ? 'true' : 'false'); }
 function showError(error) { busy(false); setStatus(error?.message || '连接失败，请检查地址后重试。', 'error'); }
-function showRemoteStep() { modeStep.hidden = true; remoteStep.hidden = false; setStatus('请输入服务器地址'); urlEl.focus(); }
-function showModeStep() { remoteStep.hidden = true; modeStep.hidden = false; setUrlError(); setStatus('请选择一个连接方式'); remoteChoice.focus(); }
+function showRemoteChoiceStep() { modeStep.hidden = true; remoteStep.hidden = true; remoteChoiceStep.hidden = false; setStatus('请选择远程连接方式'); officialRemote.focus(); }
+function showRemoteStep() { modeStep.hidden = true; remoteChoiceStep.hidden = true; remoteStep.hidden = false; setStatus('请输入服务器地址'); urlEl.focus(); }
+function showModeStep() { remoteStep.hidden = true; remoteChoiceStep.hidden = true; modeStep.hidden = false; setUrlError(); setStatus('请选择一个连接方式'); remoteChoice.focus(); }
+function showChoiceStep() { remoteStep.hidden = true; modeStep.hidden = true; remoteChoiceStep.hidden = false; setUrlError(); setStatus('请选择远程连接方式'); officialRemote.focus(); }
 function describeStatus(status) {
   if (!status) return;
   if (status.error) return showError(new Error(status.error));
@@ -39,8 +53,16 @@ function describeStatus(status) {
   if (status.message) setStatus(status.message, status.mode && status.mode !== 'connect' ? 'success' : 'idle');
 }
 localButton.addEventListener('click', async () => { if (isBusy) return; busy(true); setStatus('正在启动本地服务…'); try { await api.chooseMode('local'); } catch (error) { showError(error); } });
-remoteChoice.addEventListener('click', () => { if (!isBusy) showRemoteStep(); });
-backButton.addEventListener('click', () => { if (!isBusy) showModeStep(); });
+remoteChoice.addEventListener('click', () => { if (!isBusy) showRemoteChoiceStep(); });
+officialRemote.addEventListener('click', async () => {
+  if (isBusy) return;
+  busy(true);
+  setStatus('正在打开官方 Demo 转向入口…');
+  try { await api.connectRemote(); } catch (error) { showError(error); }
+});
+customRemote.addEventListener('click', () => { if (!isBusy) showRemoteStep(); });
+choiceBackButton.addEventListener('click', () => { if (!isBusy) showModeStep(); });
+backButton.addEventListener('click', () => { if (!isBusy) showChoiceStep(); });
 formEl.addEventListener('submit', async (event) => {
   event.preventDefault(); if (isBusy) return;
   const url = urlEl.value.trim(); setUrlError();
