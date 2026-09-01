@@ -33,7 +33,7 @@ button, input { font: inherit; }
 .blora-shell {
   width: min(1120px, calc(100% - 64px));
   margin: 0 auto;
-  padding: 34px 0 28px;
+  padding: 24px 0 20px;
 }
 
 .blora-header, .blora-footer, .blora-panel-top {
@@ -60,13 +60,21 @@ button, input { font: inherit; }
 .blora-version, .blora-eyebrow, .blora-index { font: 500 10px "SF Mono", monospace; letter-spacing: .16em; }
 .blora-version, .blora-index { color: var(--blora-color-text-subtle); }
 
-.blora-hero { max-width: 660px; padding: 96px 0 48px; }
-.blora-eyebrow { margin: 0 0 18px; color: var(--blora-color-action-primary-default); }
-.blora-hero h1 { margin: 0; font-size: clamp(34px, 5vw, 62px); line-height: 1.05; letter-spacing: -.065em; }
-.blora-hero p:last-child { margin: 20px 0 0; color: var(--blora-color-text-muted); font-size: 16px; }
+.blora-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+  align-items: end;
+  min-height: 0;
+  gap: 20px;
+  max-width: 820px;
+  padding: 64px 0 34px;
+}
+.blora-eyebrow { margin: 0 0 10px; color: var(--blora-color-action-primary-default); }
+.blora-hero h1 { margin: 0; font-size: clamp(34px, 5vw, 62px); line-height: 1.08; letter-spacing: -.065em; overflow-wrap: anywhere; }
+.blora-hero p:last-child { margin: 0 0 5px; color: var(--blora-color-text-muted); font-size: 14px; line-height: 1.5; }
 
-.blora-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.blora-card { min-height: 346px; }
+.blora-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.blora-card { min-height: 0; padding: 18px; }
 .blora-panel-top { margin-bottom: 22px; }
 .blora-icon-wrap { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 0 20px; border: 1px solid var(--blora-color-border-subtle); border-radius: var(--blora-radius-lg); color: var(--blora-color-action-primary-default); background: var(--blora-color-surface-raised); }
 .blora-icon-wrap .sf-icon { display: block; width: 20px; height: 20px; object-fit: contain; }
@@ -99,12 +107,26 @@ button, input { font: inherit; }
 @media (max-width: 700px) {
   .blora-shell { width: min(100% - 32px, 520px); padding-top: 22px; }
   .blora-version { display: none; }
-  .blora-hero { padding: 64px 0 30px; }
+  .blora-hero { display: block; padding: 52px 0 30px; }
   .blora-hero h1 { font-size: 40px; }
+  .blora-hero p:last-child { margin-top: 14px; }
   .blora-layout { grid-template-columns: 1fr; }
   .blora-card { min-height: 0; }
   .blora-feature-list { flex-direction: column; gap: 8px; }
   .blora-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
+}
+
+@media (min-width: 701px) and (max-height: 760px) {
+  .blora-shell { padding-top: 20px; padding-bottom: 16px; }
+  .blora-hero { padding-top: 48px; padding-bottom: 26px; }
+  .blora-card { padding: 16px; }
+  .blora-icon-wrap { width: 40px; height: 40px; margin-bottom: 14px; }
+  .blora-card h2 { font-size: 24px; }
+  .blora-card > p { font-size: 12px; }
+  .blora-feature-list { gap: 10px; margin: 16px 0 18px; }
+  .blora-label { margin-top: 14px; }
+  .blora-button[data-block] { margin-top: 14px; }
+  .blora-feedback { min-height: 42px; margin-top: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

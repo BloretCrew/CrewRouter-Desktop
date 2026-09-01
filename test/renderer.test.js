@@ -36,6 +36,18 @@ test('renderer keeps visible content without CSS or preload bridge', () => {
   assert.match(html, /<span hidden>⌂<\/span>/);
 });
 
+test('renderer keeps the desktop viewport layout responsive', () => {
+  assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /@media \(min-width: 701px\) and \(max-height: 760px\)/);
+  assert.match(css, /overflow-wrap: anywhere/);
+  assert.match(html, /class="blora-hero-copy"/);
+  assert.match(html, /class="blora-card blora-card--local"/);
+  assert.match(html, /class="blora-card blora-card--remote"/);
+  assert.match(html, /id="remote-url"[^>]+class="blora-input"/);
+  assert.match(html, /id="local"[^>]+class="blora-button"/);
+  assert.match(html, /id="remote"[^>]+class="blora-button"/);
+});
+
 test('renderer uses official Blora 2 structure without the 1.x API or local token fallback', () => {
   assert.match(html, /class="blora-shell"/);
   assert.match(html, /class="blora-card blora-card--local"/);
