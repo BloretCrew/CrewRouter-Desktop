@@ -27,33 +27,37 @@ test('renderer resolves the published Blora 2 package and loads its CSS', () => 
 
 test('renderer keeps visible content without CSS or preload bridge', () => {
   assert.match(html, /<main class="blora-shell"/);
-  assert.match(html, /选择你的工作空间/);
-  assert.match(html, /启动本地服务/);
-  assert.match(html, /通过官方入口连接/);
+  assert.match(html, /开始使用 CrewRouter/);
+  assert.match(html, /选择一种方式/);
+  assert.match(html, /连接服务器/);
+  assert.match(html, /本地使用/);
+  assert.match(html, /一键启动本地服务，无需登录/);
+  assert.match(html, /<form id="connection-form"/);
   assert.match(js, /preload API unavailable/);
   assert.match(html, /runtime-error/);
-  assert.match(html, /onerror="this.hidden=true/);
-  assert.match(html, /<span hidden>⌂<\/span>/);
+  assert.match(html, /id="back"[^>]+type="button"/);
+  assert.match(html, /id="remote-choice"/);
 });
 
 test('renderer keeps the desktop viewport layout responsive', () => {
   assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(css, /@media \(min-width: 701px\) and \(max-height: 760px\)/);
   assert.match(css, /overflow-wrap: anywhere/);
-  assert.match(html, /class="blora-hero-copy"/);
-  assert.match(html, /class="blora-card blora-card--local"/);
-  assert.match(html, /class="blora-card blora-card--remote"/);
+  assert.match(html, /class="connection-hero"/);
+  assert.match(html, /class="blora-card mode-option"/);
+  assert.match(html, /id="remote-step"[^>]+hidden/);
+  assert.match(html, /id="remote-choice"[^>]+aria-controls="remote-step"/);
   assert.match(html, /id="remote-url"[^>]+class="blora-input"/);
-  assert.match(html, /id="local"[^>]+class="blora-button"/);
+  assert.match(html, /id="local"[^>]+class="blora-card mode-option"/);
   assert.match(html, /id="remote"[^>]+class="blora-button"/);
 });
 
 test('renderer uses official Blora 2 structure without the 1.x API or local token fallback', () => {
   assert.match(html, /class="blora-shell"/);
-  assert.match(html, /class="blora-card blora-card--local"/);
+  assert.match(html, /class="blora-card mode-option"/);
   assert.match(html, /class="blora-button" data-variant="primary" data-block/);
   assert.match(html, /class="blora-button" data-variant="primary" data-block/);
-  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 2);
+  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 1);
   assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js/);
   assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/);
 });
