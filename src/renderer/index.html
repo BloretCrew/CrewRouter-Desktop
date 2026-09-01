@@ -1,10 +1,16 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-blora-color-scheme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090b11">
-  <title>CrewRouter Desktop · Blora</title>
+  <meta name="theme-color" content="#17161C">
+  <title>CrewRouter Desktop · Blora Design</title>
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/blora.css">
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/tokens.dark.css">
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/card/card.css">
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/badge/badge.css">
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/input/input.css">
+  <link rel="stylesheet" href="../../node_modules/@bloret-crew/blora-design/dist/components/button/button.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -24,8 +30,8 @@
     </section>
 
     <form id="connection-form" class="blora-layout" novalidate>
-      <section class="blora-panel blora-panel--local" aria-labelledby="local-heading">
-        <div class="blora-panel-top"><span class="blora-index">01</span><span class="blora-badge" data-variant="ready">READY</span></div>
+      <section class="blora-card blora-card--local" data-variant="content" aria-labelledby="local-heading">
+        <div class="blora-panel-top"><span class="blora-index">01</span><span class="blora-badge" data-variant="success">READY</span></div>
         <div class="blora-icon-wrap" aria-hidden="true"><img class="sf-icon" src="https://img.bloret.net/SF/house.fill?color=white" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>⌂</span></div>
         <h2 id="local-heading">Local</h2>
         <p>在这台设备启动完整 CrewRouter Personal Server，无需交互登录。</p>
@@ -34,12 +40,12 @@
           <li><span aria-hidden="true">✓</span>保留现有上报逻辑</li>
           <li><span aria-hidden="true">✓</span>数据留在你的环境</li>
         </ul>
-        <button id="local" class="blora-button blora-button--primary" type="button">
+        <button id="local" class="blora-button" data-variant="primary" data-block type="button">
           <span>启动本地服务</span><span class="blora-button-arrow" aria-hidden="true">↗</span>
         </button>
       </section>
 
-      <section class="blora-panel blora-panel--remote" aria-labelledby="remote-heading">
+      <section class="blora-card blora-card--remote" data-variant="content" aria-labelledby="remote-heading">
         <div class="blora-panel-top"><span class="blora-index">02</span><span class="blora-badge" data-variant="remote">REMOTE</span></div>
         <div class="blora-icon-wrap" aria-hidden="true"><img class="sf-icon" src="https://img.bloret.net/SF/globe?color=white" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>◎</span></div>
         <h2 id="remote-heading">Remote</h2>
@@ -48,7 +54,7 @@
         <input id="remote-url" class="blora-input" type="url" inputmode="url" placeholder="https://crewrouter.example.com" autocomplete="url" aria-describedby="url-hint url-error" aria-invalid="false">
         <p id="url-hint" class="blora-input-hint">输入以 http:// 或 https:// 开头的地址</p>
         <p id="url-error" class="blora-field-error" role="alert"></p>
-        <button id="remote" class="blora-button blora-button--secondary" type="submit">
+        <button id="remote" class="blora-button" data-variant="secondary" data-block type="submit">
           <span>连接远程服务</span><span class="blora-button-arrow" aria-hidden="true">↗</span>
         </button>
       </section>

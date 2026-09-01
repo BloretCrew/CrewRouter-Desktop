@@ -4,7 +4,7 @@ Electron shell，复用 CrewRouter Web UI。Local 模式启动真正的 CrewRout
 
 ## Blora Design 2.0
 
-启动连接页采用 Blora Design 2.0 的深色、高对比视觉约定：页面结构使用 `.blora-*` 组件类，状态通过 `data-state` / `data-variant` 表达，颜色、间距、圆角和焦点态集中在 `src/renderer/styles.css` 的 `--blora-*` token 层。项目当前不依赖外部 Blora npm 包，因此使用本地兼容 token fallback；如后续接入正式包，应保留现有组件语义，将 token 映射到正式包变量，并移除本地 fallback，而不是引入 Blora 1.x 的 `blora-btn`、`Blora.init()` 或 UMD 脚本。SF Symbols 图标优先使用远程图标地址，图标不可用时仍由本地字符 fallback 保证核心界面可用。
+启动连接页正式使用 `@bloret-crew/blora-design@2.0.8` 的发布 CSS、token 和组件样式。页面使用官方 `.blora-button`、`.blora-card`、`.blora-badge`、`.blora-input` 结构与 `data-variant`，页面专用 CSS 只负责布局，不复制官方 token 或组件实现。没有使用 Blora 1.x 的 `blora-btn`、`Blora.init()` 或 UMD 脚本。SF Symbols 图标优先使用远程图标地址，图标不可用时仍由本地字符 fallback 保证核心界面可用。详见 [`docs/blora-integration.md`](docs/blora-integration.md)。
 
 
 

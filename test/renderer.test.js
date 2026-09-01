@@ -6,16 +6,29 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const rendererDir = path.join(__dirname, '..', 'src', 'renderer');
+const packageRoot = path.join(__dirname, '..', 'node_modules', '@bloret-crew', 'blora-design');
 const html = fs.readFileSync(path.join(rendererDir, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(rendererDir, 'styles.css'), 'utf8');
 const js = fs.readFileSync(path.join(rendererDir, 'renderer.js'), 'utf8');
 
-test('renderer uses Blora 2.0 structure and token layer', () => {
+test('renderer resolves the published Blora 2 package and loads its CSS', () => {
+  const packageJson = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
+  assert.match(packageJson.version, /^2\./);
+  assert.equal(packageJson.type, 'module');
+  assert.equal(require.resolve('@bloret-crew/blora-design/package.json'), path.join(packageRoot, 'package.json'));
+  for (const file of ['dist/blora.css', 'dist/tokens.dark.css', 'dist/components/card/card.css', 'dist/components/badge/badge.css', 'dist/components/input/input.css', 'dist/components/button/button.css']) {
+    assert.equal(fs.existsSync(path.join(packageRoot, file)), true, file);
+    assert.match(html, new RegExp(file.replaceAll('/', '\\/')));
+  }
+});
+
+test('renderer uses official Blora 2 structure without the 1.x API or local token fallback', () => {
   assert.match(html, /class="blora-shell"/);
-  assert.match(html, /class="blora-panel blora-panel--local"/);
-  assert.match(css, /--blora-accent/);
-  assert.match(css, /data-variant/);
+  assert.match(html, /class="blora-card blora-card--local"/);
+  assert.match(html, /class="blora-button" data-variant="primary" data-block/);
+  assert.match(html, /class="blora-button" data-variant="secondary" data-block/);
   assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js/);
+  assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/);
 });
 
 test('connection controls expose accessible labels and live feedback', () => {

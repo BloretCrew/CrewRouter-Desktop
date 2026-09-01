@@ -18,7 +18,9 @@
     "pack:mac": "electron-builder --mac dmg",
     "build": "npm run pack:linux"
   },
-  "engines": { "node": ">=16" },
+  "engines": {
+    "node": ">=16"
+  },
   "devDependencies": {
     "electron": "^31.7.7",
     "electron-builder": "^25.1.8"
@@ -27,11 +29,59 @@
     "appId": "com.crewrouter.desktop",
     "productName": "CrewRouter Desktop",
     "asar": true,
-    "directories": { "output": "dist" },
-    "files": ["src/**/*", "scripts/**/*", "package.json", "README.md"],
-    "extraResources": [{ "from": "staging/server", "to": "server", "filter": ["**/*", "!node_modules/**"] }],
-    "linux": { "target": ["AppImage"], "category": "Network" },
-    "win": { "target": ["nsis"], "extraResources": [{ "from": "staging/server", "to": "server" }] },
-    "mac": { "target": ["dmg"], "extendInfo": { "CFBundleURLTypes": [{ "CFBundleURLSchemes": ["crewrouter"] }] } }
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "scripts/**/*",
+      "package.json",
+      "README.md",
+      "node_modules/@bloret-crew/blora-design/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "staging/server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!node_modules/**"
+        ]
+      }
+    ],
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "extraResources": [
+        {
+          "from": "staging/server",
+          "to": "server"
+        }
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "extendInfo": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "crewrouter"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "@bloret-crew/blora-design": "2.0.8"
   }
 }
