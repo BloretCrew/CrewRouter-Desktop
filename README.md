@@ -2,6 +2,12 @@
 
 Electron shell，复用 CrewRouter Web UI。Local 模式启动真正的 CrewRouter Server，Remote 模式直接承载 Personal/Team Server 页面。
 
+## Blora Design 2.0
+
+启动连接页采用 Blora Design 2.0 的深色、高对比视觉约定：页面结构使用 `.blora-*` 组件类，状态通过 `data-state` / `data-variant` 表达，颜色、间距、圆角和焦点态集中在 `src/renderer/styles.css` 的 `--blora-*` token 层。项目当前不依赖外部 Blora npm 包，因此使用本地兼容 token fallback；如后续接入正式包，应保留现有组件语义，将 token 映射到正式包变量，并移除本地 fallback，而不是引入 Blora 1.x 的 `blora-btn`、`Blora.init()` 或 UMD 脚本。SF Symbols 图标优先使用远程图标地址，图标不可用时仍由本地字符 fallback 保证核心界面可用。
+
+
+
 ## 开发
 
 ```bash

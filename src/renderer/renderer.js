@@ -1,16 +1,79 @@
 'use strict';
 
 const api = window.crewrouterDesktop;
+const formEl = document.getElementById('connection-form');
 const statusEl = document.getElementById('status');
+const feedbackEl = document.querySelector('.blora-feedback');
 const introEl = document.getElementById('intro');
 const urlEl = document.getElementById('remote-url');
-const buttons = [...document.querySelectorAll('button')];
-function setStatus(message, error = false) { statusEl.textContent = message; statusEl.classList.toggle('error', error); }
-function busy(value) { buttons.forEach((button) => { button.disabled = value; }); }
-function showError(error) { busy(false); setStatus(error?.message || '连接失败', true); }
+const urlErrorEl = document.getElementById('url-error');
+const localButton = document.getElementById('local');
+const remoteButton = document.getElementById('remote');
+const quitButton = document.getElementById('quit');
+let isBusy = false;
 
-document.getElementById('local').addEventListener('click', async () => { busy(true); setStatus('正在启动本地服务…'); try { await api.chooseMode('local'); } catch (error) { showError(error); } });
-document.getElementById('remote').addEventListener('click', async () => { busy(true); setStatus('正在检查远程服务器…'); try { await api.connectRemote(urlEl.value); } catch (error) { showError(error); } });
-document.getElementById('quit').addEventListener('click', () => api.quit());
-api.onStatus((status) => { if (status?.error) showError(new Error(status.error)); else if (status?.message) setStatus(status.message); });
-api.getStatus().then((status) => { if (status?.mode) introEl.textContent = `当前模式：${status.mode}`; }).catch(() => {});
+function setStatus(message, state = 'idle') {
+  statusEl.textContent = message;
+  feedbackEl.dataset.state = state;
+}
+function busy(value) {
+  isBusy = value;
+  localButton.disabled = value;
+  remoteButton.disabled = value;
+  quitButton.disabled = value;
+  localButton.setAttribute('aria-busy', String(value));
+  remoteButton.setAttribute('aria-busy', String(value));
+}
+function setUrlError(message = '') {
+  urlErrorEl.textContent = message;
+  urlEl.setAttribute('aria-invalid', message ? 'true' : 'false');
+}
+function showError(error) {
+  busy(false);
+  setStatus(error?.message || '连接失败，请检查地址后重试。', 'error');
+}
+function describeStatus(status) {
+  if (!status) return;
+  if (status.error) return showError(new Error(status.error));
+  if (status.mode) {
+    const authLabel = status.auth ? (status.auth.required === false ? '免登录' : `登录：${(status.auth.methods || []).join('、') || '服务器'}`) : '';
+    const metadata = [status.runtime, status.edition, authLabel].filter(Boolean).join(' · ');
+    introEl.textContent = `当前连接：${status.mode === 'local' ? '本地' : '远程'}${metadata ? `（${metadata}）` : ''}`;
+  }
+  if (status.message) setStatus(status.message, status.mode ? 'success' : 'idle');
+}
+
+localButton.addEventListener('click', async () => {
+  if (isBusy) return;
+  busy(true);
+  setStatus('正在启动本地服务…');
+  try { await api.chooseMode('local'); } catch (error) { showError(error); }
+});
+
+formEl.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (isBusy) return;
+  const url = urlEl.value.trim();
+  setUrlError();
+  if (!url) {
+    setUrlError('请输入远程服务器地址。');
+    setStatus('需要服务器地址才能连接。', 'error');
+    urlEl.focus();
+    return;
+  }
+  let parsed;
+  try { parsed = new URL(url); } catch { setUrlError('请输入有效的 URL。'); setStatus('地址格式不正确。', 'error'); urlEl.focus(); return; }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    setUrlError('仅支持 http:// 或 https:// 地址。');
+    setStatus('地址格式不正确。', 'error');
+    urlEl.focus();
+    return;
+  }
+  busy(true);
+  setStatus('正在检查远程服务器…');
+  try { await api.connectRemote(url); } catch (error) { showError(error); }
+});
+
+quitButton.addEventListener('click', () => { if (!isBusy) api.quit(); });
+api.onStatus(describeStatus);
+api.getStatus().then(describeStatus).catch(() => {});

@@ -1,6 +1,64 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CrewRouter Desktop</title><link rel="stylesheet" href="styles.css"></head>
-<body><main class="card"><h1>CrewRouter Desktop</h1><p id="intro">选择本地运行，或连接已有的 Personal/Team Server。</p>
-<label for="remote-url">远程服务器地址</label><input id="remote-url" type="url" placeholder="https://crewrouter.example.com" autocomplete="url">
-<div class="actions"><button id="local">启动本地服务</button><button id="remote" class="secondary">连接远程服务</button><button id="quit" class="secondary">退出</button></div>
-<div id="status" role="status"></div><small>远程页面由目标服务器提供并负责登录；Desktop 不接管 OAuth、Token 或 API Key。</small></main><script src="renderer.js"></script></body></html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090b11">
+  <title>CrewRouter Desktop · Blora</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="blora-shell" aria-labelledby="page-title">
+    <header class="blora-header">
+      <a class="blora-brand" href="#page-title" aria-label="CrewRouter Desktop 首页">
+        <span class="blora-brand-mark" aria-hidden="true"><span></span><span></span><span></span></span>
+        <span><strong>CrewRouter</strong><small>DESKTOP</small></span>
+      </a>
+      <span class="blora-version">SECURE CONNECTION SHELL</span>
+    </header>
+
+    <section class="blora-hero" aria-describedby="intro">
+      <p class="blora-eyebrow">WELCOME BACK <span aria-hidden="true">/</span> YOUR CREW, CONNECTED</p>
+      <h1 id="page-title">选择你的工作空间</h1>
+      <p id="intro">启动完整的本地服务，或连接已有的 CrewRouter Server。</p>
+    </section>
+
+    <form id="connection-form" class="blora-layout" novalidate>
+      <section class="blora-panel blora-panel--local" aria-labelledby="local-heading">
+        <div class="blora-panel-top"><span class="blora-index">01</span><span class="blora-badge" data-variant="ready">READY</span></div>
+        <div class="blora-icon-wrap" aria-hidden="true"><img class="sf-icon" src="https://img.bloret.net/SF/house.fill?color=white" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>⌂</span></div>
+        <h2 id="local-heading">Local</h2>
+        <p>在这台设备启动完整 CrewRouter Personal Server，无需交互登录。</p>
+        <ul class="blora-feature-list">
+          <li><span aria-hidden="true">✓</span>本地身份，打开即用</li>
+          <li><span aria-hidden="true">✓</span>保留现有上报逻辑</li>
+          <li><span aria-hidden="true">✓</span>数据留在你的环境</li>
+        </ul>
+        <button id="local" class="blora-button blora-button--primary" type="button">
+          <span>启动本地服务</span><span class="blora-button-arrow" aria-hidden="true">↗</span>
+        </button>
+      </section>
+
+      <section class="blora-panel blora-panel--remote" aria-labelledby="remote-heading">
+        <div class="blora-panel-top"><span class="blora-index">02</span><span class="blora-badge" data-variant="remote">REMOTE</span></div>
+        <div class="blora-icon-wrap" aria-hidden="true"><img class="sf-icon" src="https://img.bloret.net/SF/globe?color=white" alt="" onerror="this.hidden=true;this.nextElementSibling.hidden=false"><span hidden>◎</span></div>
+        <h2 id="remote-heading">Remote</h2>
+        <p>连接你的 Personal 或 Team Server，登录由目标服务器负责。</p>
+        <label class="blora-label" for="remote-url">服务器地址</label>
+        <input id="remote-url" class="blora-input" type="url" inputmode="url" placeholder="https://crewrouter.example.com" autocomplete="url" aria-describedby="url-hint url-error" aria-invalid="false">
+        <p id="url-hint" class="blora-input-hint">输入以 http:// 或 https:// 开头的地址</p>
+        <p id="url-error" class="blora-field-error" role="alert"></p>
+        <button id="remote" class="blora-button blora-button--secondary" type="submit">
+          <span>连接远程服务</span><span class="blora-button-arrow" aria-hidden="true">↗</span>
+        </button>
+      </section>
+    </form>
+
+    <div class="blora-feedback" aria-live="polite" aria-atomic="true">
+      <span class="blora-status-dot" aria-hidden="true"></span><p id="status" role="status">请选择一个连接方式</p>
+    </div>
+    <footer class="blora-footer"><small>远程页面负责登录；Desktop 不接管 OAuth、Token 或 API Key。</small><button id="quit" class="blora-quit" type="button">退出应用 <span aria-hidden="true">⌘Q</span></button></footer>
+  </main>
+  <script src="renderer.js"></script>
+</body>
+</html>
