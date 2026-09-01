@@ -25,7 +25,7 @@ button, input { font: inherit; }
   width: min(100% - (2 * var(--blora-space-6)), 1120px);
   min-height: 100vh;
   margin: 0 auto;
-  padding: var(--blora-space-5) 0 var(--blora-space-4);
+  padding: var(--blora-space-4) 0 var(--blora-space-3);
 }
 
 .blora-header, .blora-footer, .blora-panel-top {
@@ -42,11 +42,11 @@ button, input { font: inherit; }
 .blora-brand-mark span:nth-child(1) { height: 8px; } .blora-brand-mark span:nth-child(2) { height: 13px; } .blora-brand-mark span:nth-child(3) { height: 17px; }
 .blora-version, .blora-eyebrow { color: var(--blora-color-text-subtle); font: 500 var(--blora-text-xs) var(--blora-font-mono); letter-spacing: var(--blora-tracking-wide); }
 
-.connection-hero { padding: var(--blora-space-8) 0 var(--blora-space-6); }
+.connection-hero { padding: var(--blora-space-5) 0 var(--blora-space-4); }
 .blora-hero-copy { max-width: 760px; }
 .blora-eyebrow { margin: 0 0 var(--blora-space-2); color: var(--blora-color-action-primary-default); }
-.blora-hero h1 { margin: 0; font-size: clamp(var(--blora-text-3xl), 5vw, var(--blora-text-5xl)); line-height: var(--blora-leading-tight); letter-spacing: -.065em; overflow-wrap: anywhere; }
-.blora-hero p:last-child { margin: 0 0 5px; color: var(--blora-color-text-muted); font-size: var(--blora-text-sm); line-height: var(--blora-leading-normal); }
+.connection-hero h1 { margin: 0; font-size: clamp(var(--blora-text-3xl), 5vw, var(--blora-text-5xl)); line-height: var(--blora-leading-tight); letter-spacing: -.065em; overflow-wrap: anywhere; }
+.connection-hero p:last-child { margin: 0 0 5px; color: var(--blora-color-text-muted); font-size: var(--blora-text-sm); line-height: var(--blora-leading-normal); }
 
 .blora-layout { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; gap: var(--blora-space-4); }
 .blora-card { display: flex; flex-direction: column; min-height: 0; padding: var(--blora-space-5); }
@@ -80,27 +80,36 @@ button, input { font: inherit; }
 .blora-fallback-message, .blora-load-error { margin: var(--blora-space-6) auto; width: min(680px, calc(100% - (2 * var(--blora-space-6)))); padding: var(--blora-space-5); color: var(--blora-color-text-primary); background: var(--blora-color-surface-raised); border: var(--blora-border-subtle); border-radius: var(--blora-radius-lg); }
 
 @media (max-width: 700px) {
-  .blora-shell { width: min(100% - (2 * var(--blora-space-4)), 520px); padding-top: var(--blora-space-4); }
+  .blora-shell { width: min(100% - (2 * var(--blora-space-4)), 520px); padding-top: var(--blora-space-3); }
   .blora-version { display: none; }
-  .connection-hero { padding: var(--blora-space-7) 0 var(--blora-space-5); }
-  .blora-hero h1 { font-size: var(--blora-text-4xl); }
-  .blora-hero p:last-child { margin-top: var(--blora-space-3); }
+  .connection-hero { padding: var(--blora-space-3) 0; }
+  .connection-hero h1 { font-size: var(--blora-text-4xl); }
+  .connection-hero p:last-child { margin-top: var(--blora-space-2); }
   .blora-layout { grid-template-columns: 1fr; }
-  .blora-feature-list { flex-direction: column; gap: var(--blora-space-2); }
+  .blora-card { padding: var(--blora-space-4); }
+  .blora-panel-top { margin-bottom: var(--blora-space-3); }
+  .blora-icon-wrap { width: 40px; height: 40px; margin-bottom: var(--blora-space-3); }
+  .blora-card h2 { font-size: var(--blora-text-xl); }
+  .blora-card > .blora-card-content > p { font-size: var(--blora-text-xs); }
+  .blora-feature-list { flex-direction: column; gap: var(--blora-space-2); margin-top: var(--blora-space-3); }
+  .blora-label { margin-top: var(--blora-space-3); }
+  .blora-card__foot { margin-top: var(--blora-space-3); padding-top: var(--blora-space-2); }
   .blora-footer { align-items: flex-start; flex-direction: column; gap: var(--blora-space-2); }
 }
 
 @media (min-width: 701px) and (max-height: 760px) {
   .blora-shell { padding-top: var(--blora-space-4); padding-bottom: var(--blora-space-3); }
-  .connection-hero { padding-top: var(--blora-space-6); padding-bottom: var(--blora-space-4); }
+  .connection-hero { padding-top: var(--blora-space-3); padding-bottom: var(--blora-space-3); }
   .blora-card { padding: var(--blora-space-4); }
+  .blora-panel-top { margin-bottom: var(--blora-space-3); }
   .blora-icon-wrap { width: 40px; height: 40px; margin-bottom: var(--blora-space-3); }
   .blora-card h2 { font-size: var(--blora-text-xl); }
   .blora-card > .blora-card-content > p { font-size: var(--blora-text-xs); }
-  .blora-feature-list { gap: var(--blora-space-2); margin-top: var(--blora-space-4); }
-  .blora-label { margin-top: var(--blora-space-4); }
-  .blora-card__foot { margin-top: var(--blora-space-4); padding-top: var(--blora-space-3); }
-  .blora-feedback { min-height: 2.75rem; }
+  .blora-feature-list { gap: var(--blora-space-2); margin-top: var(--blora-space-3); }
+  .blora-label { margin-top: var(--blora-space-3); }
+  .blora-card__foot { margin-top: var(--blora-space-3); padding-top: var(--blora-space-2); }
+  .blora-feedback { min-height: 2.5rem; }
+  .blora-footer { padding: var(--blora-space-2) 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

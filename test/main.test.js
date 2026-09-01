@@ -2,6 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const main = require('../src/main');
 
@@ -22,4 +24,10 @@ test('main status exposes an explicit connect state', () => {
     protocolVersion: null,
     profile: null,
   });
+});
+
+test('preload bridge is present at the formal renderer path', () => {
+  assert.equal(fs.existsSync(path.join(__dirname, '..', 'src', 'preload.js')), true);
+  const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
+  assert.match(preload, /contextBridge\.exposeInMainWorld\('crewrouterDesktop'/);
 });

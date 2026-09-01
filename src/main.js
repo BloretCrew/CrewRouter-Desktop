@@ -72,8 +72,16 @@ async function handleProtocol(raw) {
   } catch (error) { sendStatus({ error: error.message }); }
 }
 
+function getWindowWebPreferences() {
+  return { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true };
+}
 function isRendererFrame(event) {
-  return Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && event.senderFrame?.url === `file://${rendererEntry}` && !state.currentTarget);
+  let framePath = '';
+  try {
+    const frameUrl = new URL(event.senderFrame?.url || '');
+    if (frameUrl.protocol === 'file:') framePath = decodeURIComponent(frameUrl.pathname);
+  } catch {}
+  return Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && framePath === rendererEntry && !state.currentTarget);
 }
 function allowedNavigation(target) {
   try {
@@ -88,7 +96,9 @@ async function openSafeExternal(raw) {
   return electron.shell.openExternal(result.url.toString());
 }
 function createWindow() {
-  state.mainWindow = new electron.BrowserWindow({ width: 960, height: 700, webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } });
+  const width = Number(process.env.CREWROUTER_WINDOW_WIDTH) || 960;
+  const height = Number(process.env.CREWROUTER_WINDOW_HEIGHT) || 700;
+  state.mainWindow = new electron.BrowserWindow({ width, height, webPreferences: getWindowWebPreferences() });
   state.mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
     if (!isMainFrame) return;
     const message = `启动页面加载失败（${errorCode}）：${errorDescription}`;
