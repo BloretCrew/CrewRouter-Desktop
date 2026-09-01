@@ -55,7 +55,7 @@ button, input { font: inherit; }
 .blora-hero p:last-child { margin: 20px 0 0; color: var(--blora-color-text-muted); font-size: 16px; }
 
 .blora-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.blora-panel { min-height: 346px; }
+.blora-card { min-height: 346px; }
 .blora-panel-top { margin-bottom: 22px; }
 .blora-icon-wrap { display: grid; place-items: center; width: 48px; height: 48px; margin: 0 0 20px; border: 1px solid var(--blora-color-border-subtle); border-radius: var(--blora-radius-lg); color: var(--blora-color-action-primary-default); background: var(--blora-color-surface-raised); }
 .blora-icon-wrap .sf-icon { display: block; width: 20px; height: 20px; object-fit: contain; }
@@ -87,7 +87,7 @@ button, input { font: inherit; }
   .blora-hero { padding: 64px 0 30px; }
   .blora-hero h1 { font-size: 40px; }
   .blora-layout { grid-template-columns: 1fr; }
-  .blora-panel { min-height: 0; }
+  .blora-card { min-height: 0; }
   .blora-feature-list { flex-direction: column; gap: 8px; }
   .blora-footer { align-items: flex-start; flex-direction: column; gap: 12px; }
 }
