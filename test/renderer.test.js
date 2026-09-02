@@ -61,7 +61,7 @@ test('renderer uses official Blora 2 structure without the 1.x API or local toke
   assert.match(html, /class="blora-card mode-option"/);
   assert.match(html, /class="blora-button" data-variant="primary" data-block/);
   assert.match(html, /class="blora-button" data-variant="primary" data-block/);
-  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 1);
+  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 2);
   assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js/);
   assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/);
 });
@@ -86,7 +86,9 @@ test('renderer guards repeated actions and renders server metadata/errors', () =
   assert.match(js, /status\.edition/);
   assert.match(js, /status\.auth/);
   assert.match(js, /status\.auth\.methods/);
-  assert.match(js, /正在通过官方 Demo 转向入口连接/);
+  assert.match(js, /正在打开官方 Demo 转向入口/);
+  assert.match(js, /正在直接连接自定义服务器/);
+  assert.match(js, /connectCustomRemote/);
   assert.match(js, /setStatus\(error\?\.message/);
 });
 

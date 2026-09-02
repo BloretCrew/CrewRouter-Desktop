@@ -5,7 +5,9 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('crewrouterDesktop', Object.freeze({
   getStatus: () => ipcRenderer.invoke('desktop:get-status'),
   chooseMode: (mode) => ipcRenderer.invoke('desktop:choose-mode', mode),
-  connectRemote: (url) => ipcRenderer.invoke('desktop:connect-remote', url),
+  setupLocalProfile: (displayName) => ipcRenderer.invoke('desktop:setup-local-profile', displayName),
+  connectRemote: () => ipcRenderer.invoke('desktop:connect-remote'),
+  connectCustomRemote: (url) => ipcRenderer.invoke('desktop:connect-custom-remote', url),
   openExternal: (url) => ipcRenderer.invoke('desktop:open-external', url),
   listProfiles: () => ipcRenderer.invoke('desktop:list-profiles'),
   switchProfile: (id) => ipcRenderer.invoke('desktop:switch-profile', id),

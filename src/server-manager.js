@@ -21,24 +21,29 @@ async function startIsolatedPostgres(userData, host = '127.0.0.1') {
   const postgresUid = Number(execFileSync('id', ['-u', 'postgres'], { encoding: 'utf8' }).trim());
   const postgresGid = Number(execFileSync('id', ['-g', 'postgres'], { encoding: 'utf8' }).trim());
   const runtimeDir = path.join(userData, 'runtime');
-  const dataDir = path.join(runtimeDir, 'postgres');
-  const logPath = path.join(runtimeDir, 'postgres.log');
+  const postgresKey = crypto.createHash('sha256').update(path.resolve(userData)).digest('hex').slice(0, 16);
+  // PostgreSQL runs as postgres and cannot traverse root-owned home directories such as /root/.config.
+  const postgresRoot = path.join(os.tmpdir(), `crewrouter-desktop-postgres-${postgresKey}`);
+  const dataDir = path.join(postgresRoot, 'data');
+  const logPath = path.join(postgresRoot, 'postgres.log');
   const pgCtl = process.env.PG_CTL || 'pg_ctl';
   const psql = process.env.PSQL || 'psql';
-  const databaseName = `crewrouter_desktop_${crypto.createHash('sha256').update(path.resolve(userData)).digest('hex').slice(0, 16)}`;
+  const databaseName = `crewrouter_desktop_${postgresKey}`;
   let stopped = false;
   await fsp.mkdir(runtimeDir, { recursive: true });
-  // PostgreSQL runs as its own OS user and must traverse the Desktop runtime path.
-  await fsp.chmod(userData, 0o755);
-  await fsp.chmod(runtimeDir, 0o755);
+  await fsp.mkdir(postgresRoot, { recursive: true, mode: 0o755 });
+  await fsp.chown(postgresRoot, postgresUid, postgresGid);
   if (!fs.existsSync(path.join(dataDir, 'PG_VERSION'))) {
     await fsp.mkdir(dataDir, { recursive: true });
-    await fsp.chown(runtimeDir, postgresUid, postgresGid);
     await fsp.chown(dataDir, postgresUid, postgresGid);
     runAsPostgres(process.env.PG_INITDB || 'initdb', ['--no-locale', '--encoding=UTF8', '--auth=trust', '-D', dataDir]);
   }
   const port = await findFreePort(host);
   try {
+    try {
+      runAsPostgres(pgCtl, ['-D', dataDir, 'status'], { stdio: 'ignore' });
+      runAsPostgres(pgCtl, ['-D', dataDir, 'stop', '-m', 'immediate'], { stdio: 'ignore' });
+    } catch {}
     runAsPostgres(pgCtl, ['-D', dataDir, '-o', `-h ${host} -p ${port}`, '-l', logPath, 'start']);
     const databases = execFileSync('runuser', ['-u', 'postgres', '--', psql, '-h', host, '-p', String(port), '-d', 'postgres', '-At', '-c', `SELECT 1 FROM pg_database WHERE datname = '${databaseName}'`], { encoding: 'utf8' });
     if (!databases.trim()) runAsPostgres(psql, ['-h', host, '-p', String(port), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${databaseName}`]);
@@ -92,7 +97,8 @@ async function createRuntimeConfig(userData, overrides = {}) {
   const logsDir = path.join(userData, 'logs');
   await Promise.all([fsp.mkdir(runtimeDir, { recursive: true }), fsp.mkdir(dataDir, { recursive: true }), fsp.mkdir(logsDir, { recursive: true })]);
   const configPath = path.join(runtimeDir, 'config.json');
-  const databaseName = `crewrouter_desktop_${crypto.randomBytes(8).toString('hex')}`;
+  const databaseKey = crypto.createHash('sha256').update(path.resolve(userData)).digest('hex').slice(0, 16);
+  const databaseName = `crewrouter_desktop_${databaseKey}`;
   const config = {
     app: { name: 'CrewRouter Desktop', host: '127.0.0.1', port: 0, sessionSecret: crypto.randomBytes(32).toString('hex') },
     database: { host: '127.0.0.1', port: 5432, name: databaseName, user: 'postgres', password: '' },
@@ -171,6 +177,8 @@ class LocalServerManager {
       ...(opts.edition ? { edition: opts.edition } : {}),
       ...(opts.auth ? { auth: opts.auth } : {}),
       ...(opts.demo !== undefined ? { demo: opts.demo } : {}),
+      ...(opts.localIdentityId ? { localIdentityId: opts.localIdentityId } : {}),
+      ...(opts.displayName ? { displayName: opts.displayName } : {}),
       ...(opts.database ? { database: opts.database } : {}),
     });
       if (!opts.database && opts.createDatabase !== false && process.platform === 'linux' && (() => { try { execFileSync('id', ['-u', 'postgres']); return true; } catch { return false; } })()) {
@@ -181,6 +189,8 @@ class LocalServerManager {
         ...(opts.edition ? { edition: opts.edition } : {}),
         ...(opts.auth ? { auth: opts.auth } : {}),
         ...(opts.demo !== undefined ? { demo: opts.demo } : {}),
+        ...(opts.localIdentityId ? { localIdentityId: opts.localIdentityId } : {}),
+        ...(opts.displayName ? { displayName: opts.displayName } : {}),
         database: this.database.config,
       });
     }
@@ -197,14 +207,14 @@ class LocalServerManager {
     const logStream = fs.createWriteStream(logPath, { flags: 'a', mode: 0o600 });
     const inherited = { ...process.env };
     // Do not let a desktop child accidentally use the parent's production listener/config.
-    const inheritedConfigKeys = /^(?:CR(?:W)?_|DATABASE_URL$|PG(?:HOST|PORT|USER|PASSWORD|DATABASE)$)/;
+    const inheritedConfigKeys = /^(?:CR(?:W)?_|CREWROUTER_(?:SERVER_ROOT|PACKAGED_SERVER_ROOT)$|DATABASE_URL$|PG(?:HOST|PORT|USER|PASSWORD|DATABASE)$)/;
     for (const key of Object.keys(inherited)) if (inheritedConfigKeys.test(key)) delete inherited[key];
     const env = { ...inherited };
     for (const [key, value] of Object.entries(opts.env || {})) {
       if (!inheritedConfigKeys.test(key)) env[key] = value;
     }
     const database = this.runtime.config.database;
-    Object.assign(env, { CR_APP_HOST: opts.host, CR_APP_PORT: String(port), CR_CONFIG_PATH: this.runtime.configPath, CR_DATA_DIR: this.runtime.dataDir, CR_LOG_DIR: this.runtime.logsDir, CR_RUNTIME: this.runtime.config.runtime || 'desktop-local', CR_EDITION: this.runtime.config.edition || 'personal', CR_AUTH_REQUIRED: String(this.runtime.config.auth?.required ?? false), CR_AUTH_METHODS: Array.isArray(this.runtime.config.auth?.methods) ? this.runtime.config.auth.methods.join(',') : 'local', CR_LOGIN_REPORT_ENABLED: String(this.runtime.config.loginReport?.enabled ?? true), CR_STATS_REPORT_ENABLED: String(this.runtime.config.statsReport?.enabled ?? true), CR_DEMO: String(this.runtime.config.demo === true), CR_DB_HOST: database.host, CR_DB_PORT: String(database.port), CR_DB_NAME: database.name, CR_DB_USER: database.user, CR_DB_PASSWORD: database.password });
+    Object.assign(env, { CR_APP_HOST: opts.host, CR_APP_PORT: String(port), CR_CONFIG_PATH: this.runtime.configPath, CR_DATA_DIR: this.runtime.dataDir, CR_LOG_DIR: this.runtime.logsDir, CR_RUNTIME: this.runtime.config.runtime || 'desktop-local', CR_EDITION: this.runtime.config.edition || 'personal', CR_AUTH_REQUIRED: String(this.runtime.config.auth?.required ?? false), CR_AUTH_METHODS: Array.isArray(this.runtime.config.auth?.methods) ? this.runtime.config.auth.methods.join(',') : 'local', CR_LOGIN_REPORT_ENABLED: String(this.runtime.config.loginReport?.enabled ?? true), CR_STATS_REPORT_ENABLED: String(this.runtime.config.statsReport?.enabled ?? true), CR_DEMO: String(this.runtime.config.demo === true), CR_LOCAL_ID: this.runtime.config.localIdentityId || '', CR_LOCAL_DISPLAY_NAME: this.runtime.config.displayName || '', CR_DB_HOST: database.host, CR_DB_PORT: String(database.port), CR_DB_NAME: database.name, CR_DB_USER: database.user, CR_DB_PASSWORD: database.password });
     // A packaged Electron executable must be switched to Node mode for the bundled Server child.
     if (process.versions.electron && opts.runAsNode !== false) env.ELECTRON_RUN_AS_NODE = '1';
     let child;
@@ -240,11 +250,15 @@ class LocalServerManager {
     if (this.runtime?.config.runtime !== 'desktop-local') return;
     let me;
     try { me = await requestJson(`${this.status.baseUrl}/auth/me`, this.options.requestTimeoutMs, this.options.request || http); }
-    catch { return; }
+    catch (error) {
+      // Older or minimal test servers may not expose the optional identity endpoint.
+      if (error.statusCode === 401 || error.statusCode === 404) return;
+      throw new Error(`本地身份初始化检查失败：${error.message}`);
+    }
     if (!me.body?.needsPasswordSetup) return;
     const bcryptPath = path.join(path.dirname(this.serverEntry || ''), 'node_modules', 'bcryptjs');
     let bcrypt;
-    try { bcrypt = require(bcryptPath); } catch { return; }
+    try { bcrypt = require(bcryptPath); } catch (error) { throw new Error(`本地身份初始化依赖缺失：${error.message}`); }
     const passwordHash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 10);
     const database = this.runtime.config.database;
     const sql = `UPDATE users SET password_hash = '${passwordHash}' WHERE username = 'desktop-local' AND (password_hash IS NULL OR password_hash = '')`;

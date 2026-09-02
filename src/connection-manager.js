@@ -46,9 +46,9 @@ class ConnectionManager {
     return { ...parseInstanceResponse(body, { allowLocalRuntime: options.allowLocalhost }), url: result.url.toString() };
   }
 
-  async connect({ id = crypto.randomUUID(), name = 'CrewRouter', url, mode = 'remote', allowLocalhost = false } = {}) {
+  async connect({ id = crypto.randomUUID(), name = 'CrewRouter', displayName = null, localIdentityId = null, url, mode = 'remote', allowLocalhost = false } = {}) {
     const instance = await this.inspect(url, { allowLocalhost });
-    const profile = { id, name, url: instance.url, mode, runtime: instance.runtime, edition: instance.edition, auth: instance.auth, capabilities: instance.capabilities, protocolVersion: instance.protocolVersion, lastConnectedAt: new Date(this.now()).toISOString() };
+    const profile = { id, name, ...(displayName ? { displayName } : {}), ...(localIdentityId ? { localIdentityId } : {}), url: instance.url, mode, runtime: instance.runtime, edition: instance.edition, auth: instance.auth, capabilities: instance.capabilities, protocolVersion: instance.protocolVersion, lastConnectedAt: new Date(this.now()).toISOString() };
     this.store.upsert(profile); this.store.setActive(id);
     return profile;
   }

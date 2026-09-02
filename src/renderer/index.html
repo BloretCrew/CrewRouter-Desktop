@@ -46,6 +46,18 @@
       </div>
     </section>
 
+    <section id="local-profile-step" class="remote-step" aria-labelledby="local-profile-heading" hidden>
+      <div class="step-heading-row"><div><p class="blora-eyebrow">本地设置</p><h2 id="local-profile-heading">设置你的用户名</h2></div></div>
+      <p class="remote-description">只需设置一次，用于显示在本地控制台和资料中。无需密码或登录。</p>
+      <form id="local-profile-form" novalidate>
+        <label class="blora-label" for="local-username">用户名</label>
+        <input id="local-username" class="blora-input" type="text" maxlength="64" autocomplete="nickname" aria-describedby="local-username-hint local-username-error" aria-invalid="false">
+        <p id="local-username-hint" class="blora-input-hint">可使用普通文字、数字或短横线，最多 64 个字符。</p>
+        <p id="local-username-error" class="blora-field-error" role="alert"></p>
+        <button id="local-continue" class="blora-button" data-variant="primary" data-block type="submit"><span>继续进入本地控制台</span><span class="blora-button-arrow" aria-hidden="true">→</span></button>
+      </form>
+    </section>
+
     <section id="remote-choice-step" class="remote-step" aria-labelledby="remote-choice-heading" hidden>
       <div class="step-heading-row">
         <div><p class="blora-eyebrow">第二步</p><h2 id="remote-choice-heading">连接服务器</h2></div>
@@ -60,7 +72,7 @@
         </button>
         <button id="custom-remote" class="blora-card mode-option" type="button" aria-controls="remote-step">
           <span class="mode-option__icon" aria-hidden="true">⌕</span>
-          <span class="mode-option__copy"><strong>输入服务器地址</strong><small>自己填写服务器地址，仍然通过官方 Demo 转向</small></span>
+          <span class="mode-option__copy"><strong>输入服务器地址</strong><small>自己填写服务器地址，直接打开，不经过官方 Demo</small></span>
           <span class="mode-option__arrow" aria-hidden="true">→</span>
         </button>
       </div>
@@ -76,7 +88,7 @@
         <input id="remote-url" class="blora-input" type="url" inputmode="url" placeholder="https://server.example.com" autocomplete="url" aria-describedby="url-hint url-error" aria-invalid="false">
         <p id="url-hint" class="blora-input-hint">Personal 或 Team 由目标服务器自动识别，登录由目标服务器负责。</p>
         <p id="url-error" class="blora-field-error" role="alert"></p>
-        <button id="remote" class="blora-button" data-variant="primary" data-block type="submit"><span>通过官方 Demo 连接</span><span class="blora-button-arrow" aria-hidden="true">↗</span></button>
+        <button id="remote" class="blora-button" data-variant="primary" data-block type="submit"><span>直接连接服务器</span><span class="blora-button-arrow" aria-hidden="true">↗</span></button>
       </form>
     </section>
 
