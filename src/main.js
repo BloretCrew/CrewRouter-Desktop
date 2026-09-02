@@ -43,7 +43,12 @@ async function connect(url, { local = false, name = local ? '本地 CrewRouter' 
   state.currentTarget = new URL(profile.url).origin;
   state.mode = local ? 'local' : 'remote';
   state.instance = { ...profile, profile: { id: profile.id, name: profile.name, lastConnectedAt: profile.lastConnectedAt } };
-  await state.mainWindow.loadURL(state.currentTarget);
+  try {
+    await state.mainWindow.loadURL(state.currentTarget);
+  } catch (error) {
+    // A redirect can supersede the initial navigation after the target is already loaded.
+    if (error?.code !== 'ERR_ABORTED' && error?.errno !== -3) throw error;
+  }
   sendStatus({ message: `${profile.edition} Server 已连接`, ...currentStatus() });
   return currentStatus();
 }

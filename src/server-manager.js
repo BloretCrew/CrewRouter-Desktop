@@ -20,21 +20,30 @@ function runAsPostgres(command, args, options = {}) {
 async function startIsolatedPostgres(userData, host = '127.0.0.1') {
   const postgresUid = Number(execFileSync('id', ['-u', 'postgres'], { encoding: 'utf8' }).trim());
   const postgresGid = Number(execFileSync('id', ['-g', 'postgres'], { encoding: 'utf8' }).trim());
-  const dataDir = await fsp.mkdtemp(path.join(os.tmpdir(), 'crewrouter-postgres-'));
-  const logPath = path.join(dataDir, 'postgres.log');
+  const runtimeDir = path.join(userData, 'runtime');
+  const dataDir = path.join(runtimeDir, 'postgres');
+  const logPath = path.join(runtimeDir, 'postgres.log');
   const pgCtl = process.env.PG_CTL || 'pg_ctl';
   const psql = process.env.PSQL || 'psql';
-  const databaseName = `crewrouter_desktop_${crypto.randomBytes(8).toString('hex')}`;
+  const databaseName = `crewrouter_desktop_${crypto.createHash('sha256').update(path.resolve(userData)).digest('hex').slice(0, 16)}`;
   let stopped = false;
-  await fsp.chown(dataDir, postgresUid, postgresGid);
+  await fsp.mkdir(runtimeDir, { recursive: true });
+  // PostgreSQL runs as its own OS user and must traverse the Desktop runtime path.
+  await fsp.chmod(userData, 0o755);
+  await fsp.chmod(runtimeDir, 0o755);
+  if (!fs.existsSync(path.join(dataDir, 'PG_VERSION'))) {
+    await fsp.mkdir(dataDir, { recursive: true });
+    await fsp.chown(runtimeDir, postgresUid, postgresGid);
+    await fsp.chown(dataDir, postgresUid, postgresGid);
+    runAsPostgres(process.env.PG_INITDB || 'initdb', ['--no-locale', '--encoding=UTF8', '--auth=trust', '-D', dataDir]);
+  }
   const port = await findFreePort(host);
   try {
-    runAsPostgres(process.env.PG_INITDB || 'initdb', ['--no-locale', '--encoding=UTF8', '--auth=trust', '-D', dataDir]);
     runAsPostgres(pgCtl, ['-D', dataDir, '-o', `-h ${host} -p ${port}`, '-l', logPath, 'start']);
-    runAsPostgres(psql, ['-h', host, '-p', String(port), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${databaseName}`]);
+    const databases = execFileSync('runuser', ['-u', 'postgres', '--', psql, '-h', host, '-p', String(port), '-d', 'postgres', '-At', '-c', `SELECT 1 FROM pg_database WHERE datname = '${databaseName}'`], { encoding: 'utf8' });
+    if (!databases.trim()) runAsPostgres(psql, ['-h', host, '-p', String(port), '-d', 'postgres', '-v', 'ON_ERROR_STOP=1', '-c', `CREATE DATABASE ${databaseName}`]);
   } catch (error) {
     try { runAsPostgres(pgCtl, ['-D', dataDir, 'stop', '-m', 'immediate']); } catch {}
-    try { runAsPostgres('rm', ['-rf', '--', dataDir]); } catch {}
     throw error;
   }
   return {
@@ -45,10 +54,6 @@ async function startIsolatedPostgres(userData, host = '127.0.0.1') {
       if (stopped) return;
       stopped = true;
       try { runAsPostgres(pgCtl, ['-D', dataDir, 'stop', '-m', 'fast']); } catch {}
-      try { runAsPostgres('rm', ['-rf', '--', dataDir]); } catch (error) {
-        try { await fsp.chmod(dataDir, 0o700); await fsp.rm(dataDir, { recursive: true, force: true }); } catch {}
-        if (fs.existsSync(dataDir)) throw error;
-      }
     },
   };
 }
@@ -217,7 +222,7 @@ class LocalServerManager {
         if (this.child === child) { this.child = null; this.status.ready = false; this.status.exit = { code, signal }; }
       });
       if (opts.waitForReady !== false) {
-        await this.waitUntilReady(child, () => exitError);
+          await this.waitUntilReady(child, () => exitError);
         await this.ensureLocalPrincipalReady();
       }
       return this.getStatus();
