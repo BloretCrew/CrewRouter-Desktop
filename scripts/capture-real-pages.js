@@ -42,9 +42,9 @@ async function capture(win, baseUrl, filename, width, height, theme, expectedTex
     results.teamDark = await capture(win, teamUrl, 'team-dark-real.png', 1280, 800, 'dark', '2 个模型');
     results.teamNarrow = await capture(win, teamUrl, 'team-narrow-real.png', 600, 800, 'light', '2 个模型');
     const personal = await manager.start();
-    results.personalLight = await capture(win, personal.baseUrl, 'personal-light-real.png', 1280, 800, 'light', 'Personal 版本地服务不提供共享模型库');
-    results.personalDark = await capture(win, personal.baseUrl, 'personal-dark-real.png', 1280, 800, 'dark', 'Personal 版本地服务不提供共享模型库');
-    results.personalNarrow = await capture(win, personal.baseUrl, 'personal-narrow-real.png', 600, 800, 'light', 'Personal 版本地服务不提供共享模型库');
+    results.personalLight = await capture(win, personal.baseUrl, 'personal-light-real.png', 1280, 800, 'light', '还没有配置 Provider');
+    results.personalDark = await capture(win, personal.baseUrl, 'personal-dark-real.png', 1280, 800, 'dark', '还没有配置 Provider');
+    results.personalNarrow = await capture(win, personal.baseUrl, 'personal-narrow-real.png', 600, 800, 'light', '还没有配置 Provider');
     console.log(JSON.stringify({ results, output }));
   } finally {
     await manager.stop().catch(() => {});

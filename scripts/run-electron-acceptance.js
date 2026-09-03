@@ -31,7 +31,7 @@ try {
   fs.mkdirSync(output, { recursive: true });
   run('first');
   run('restart');
-  console.log(JSON.stringify({ userData, screenshots: ['local-username-oobe-960x700.png', 'local-username-console-960x700.png', 'local-username-console-600x700.png'] }));
+  console.log(JSON.stringify({ userData, screenshots: ['personal-model-library-960x700.png', 'personal-model-library-600x700.png'] }));
 } finally {
   fs.rmSync(userData, { recursive: true, force: true });
 }
