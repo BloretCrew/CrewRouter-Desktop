@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const source = path.resolve(process.env.CREWROUTER_RELEASE_ROOT || process.argv[2] || path.resolve(__dirname, '../../dist'));
 const destination = path.resolve(process.env.CREWROUTER_STAGE_ROOT || path.join(__dirname, '..', 'staging', 'server'));
+const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 const files = ['server.js', 'package.json'];
 const directories = ['public', 'lang'];
 const forbidden = /(^|\/)(?:\.env(?:\..*)?|.*\.(?:db|sqlite|sqlite3)|credentials?|secrets?)(?:$|\/)/i;
@@ -41,12 +42,7 @@ function patchDesktopInstancePayload() {
   const sourceText = fs.readFileSync(appPath, 'utf8');
   const instanceMarker = "      this.instance = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;";
   const instanceReplacement = "      const instancePayload = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;\n      this.instance = instancePayload?.data && typeof instancePayload.data === 'object'\n        ? instancePayload.data\n        : instancePayload;";
-  if (sourceText.includes(instanceMarker)) {
-    fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
-    return;
-  }
-  // Older server releases do not expose the edition badge bootstrap; they remain compatible without this desktop-only normalization.
-  return;
+  if (sourceText.includes(instanceMarker)) fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
 }
 
 function assertSafeBundle() {
@@ -72,7 +68,7 @@ if (!fs.existsSync(source)) {
     files.forEach(copyFile);
     directories.forEach(copyDirectory);
     patchDesktopInstancePayload();
-    execFileSync(process.env.npm_execpath || 'npm', ['install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], {
+    execFileSync(npmCommand, ['install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], {
       cwd: destination,
       stdio: 'inherit',
     });
