@@ -60,16 +60,29 @@ jobs:
             path: dist/*.dmg
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Checkout
+      - name: Checkout desktop repository
         uses: actions/checkout@v4
+      - name: Checkout CrewRouter server source
+        uses: actions/checkout@v4
+        with:
+          repository: BloretCrew/CrewRouter
+          path: server-source
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
           cache: npm
-      - name: Install dependencies
+          cache-dependency-path: |
+            package-lock.json
+            server-source/package-lock.json
+      - name: Install desktop dependencies
         run: npm ci
+      - name: Build CrewRouter server release
+        working-directory: server-source
+        run: npm ci && npm run build
       - name: Build package
+        env:
+          CREWROUTER_RELEASE_ROOT: ${{ github.workspace }}/server-source/dist
         run: ${{ matrix.command }}
       - name: Upload ${{ matrix.platform }} artifact
         uses: actions/upload-artifact@v4
