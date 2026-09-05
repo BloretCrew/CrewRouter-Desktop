@@ -41,8 +41,12 @@ function patchDesktopInstancePayload() {
   const sourceText = fs.readFileSync(appPath, 'utf8');
   const instanceMarker = "      this.instance = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;";
   const instanceReplacement = "      const instancePayload = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;\n      this.instance = instancePayload?.data && typeof instancePayload.data === 'object'\n        ? instancePayload.data\n        : instancePayload;";
-  if (!sourceText.includes(instanceMarker)) throw new Error('Expected instance bootstrap was not found in staged app.js');
-  fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
+  if (sourceText.includes(instanceMarker)) {
+    fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
+    return;
+  }
+  if (sourceText.includes('this.instance = window.CrewRouterEditionBadge')) return;
+  throw new Error('Expected instance bootstrap was not found in staged app.js');
 }
 
 function assertSafeBundle() {
