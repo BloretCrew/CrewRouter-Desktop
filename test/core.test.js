@@ -15,6 +15,8 @@ const tempStore = () => new ProfileStore(path.join(fs.mkdtempSync(path.join(os.t
 test('URL policy blocks private targets and redacts secrets', async () => {
   assert.equal((await validateRemoteUrl('http://127.0.0.1:1234')).ok, false);
   assert.equal((await validateRemoteUrl('http://localhost:1234')).ok, false);
+  assert.equal((await validateRemoteUrl('https://example.com/#access_token=secret')).ok, false);
+  assert.equal(redactUrl('https://example.com/#access_token=secret'), 'https://example.com/#[REDACTED]');
   assert.equal((await validateRemoteUrl('http://127.0.0.1:1234', { allowLocalhost: true })).ok, true);
   assert.equal((await validateRemoteUrl('http://example.invalid', { allowLocalhost: true })).ok, false);
   assert.equal((await validateRemoteUrl('http://user:pass@example.com')).ok, false);
@@ -43,6 +45,8 @@ test('redirect callback binds one safe target and rejects replay or credentials'
   await assert.rejects(() => flow.parseCallback(`crewrouter://connect/?state=${second}&serverUrl=https%3A%2F%2Fother.example`, { allowLocalhost: true }), /不一致|DNS|内网/);
   const third = flow.createState({ serverUrl: 'http://127.0.0.1:20001' });
   assert.throws(() => flow.parseCallback(`crewrouter://connect/?state=${third}&code=secret`, { allowLocalhost: true }), /凭据/);
+  const fragmentState = flow.createState({ serverUrl: 'http://127.0.0.1:20001' });
+  assert.throws(() => flow.parseCallback(`crewrouter://connect/?state=${fragmentState}#access_token=secret`, { allowLocalhost: true }), /fragment/);
 });
 
 test('Demo URL construction carries a validated target without inventing an endpoint', () => {
@@ -70,6 +74,19 @@ test('profile store persists local display name and identity without affecting r
   assert.equal(state.profiles.find((p) => p.id === 'local').displayName, 'Ada');
   assert.equal(state.profiles.find((p) => p.id === 'local').localIdentityId, 'stable-local-id');
   assert.equal(state.profiles.find((p) => p.id === 'remote').displayName, null);
+});
+
+test('desktop settings are isolated and profiles can be renamed or removed', () => {
+  const store = tempStore();
+  store.upsert({ id: 'local', name: 'Local', url: 'http://localhost:1234', mode: 'local' });
+  store.upsert({ id: 'remote', name: 'Remote', url: 'https://remote.example', mode: 'remote' });
+  store.rename('remote', '远程工作区');
+  assert.equal(store.getSettings().theme, 'system');
+  store.saveSettings({ theme: 'dark', autoConnect: false, notifications: true, updateChecks: false, token: 'must-not-persist' });
+  assert.deepEqual(store.getSettings(), { theme: 'dark', autoConnect: false, notifications: true, updateChecks: false });
+  assert.doesNotMatch(JSON.stringify(store.load()), /token|api.?key/i);
+  store.remove('remote');
+  assert.equal(store.load().profiles.length, 1);
 });
 
 test('profile store recovers corruption and switches profiles', () => {

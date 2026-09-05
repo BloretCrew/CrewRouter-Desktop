@@ -15,7 +15,8 @@ try { electron = require('electron'); } catch { electron = null; }
 
 const DEMO_URL = process.env.CREWROUTER_DEMO_URL || 'https://crewrouter.bloret.net';
 const rendererEntry = path.join(__dirname, 'renderer', 'index.html');
-const state = { mainWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false, localProfile: null, localIdentityId: null };
+const settingsEntry = path.join(__dirname, 'renderer', 'settings.html');
+const state = { mainWindow: null, settingsWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false, localProfile: null, localIdentityId: null };
 const redirectFlow = new RedirectFlow();
 
 function requestFetch(url, options = {}) {
@@ -38,7 +39,8 @@ function currentStatus() {
   const active = state.connection?.activeProfile() || null;
   const localProfile = state.localProfile || (active?.mode === 'local' ? active : null);
   const needsLocalProfile = state.mode === 'connect' && (!active || (active.mode === 'local' && !active.displayName));
-  return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, auth: state.instance?.auth || null, demo: state.instance?.demo ?? null, capabilities: state.instance?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null, localProfile: localProfile ? { id: localProfile.id, displayName: localProfile.displayName || null, localIdentityId: localProfile.localIdentityId || null } : null, needsLocalProfile };
+  const localStatus = state.local?.getStatus?.() || null;
+  return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || localStatus?.runtime || null, edition: state.instance?.edition || localStatus?.edition || null, auth: state.instance?.auth || localStatus?.auth || null, demo: state.instance?.demo ?? localStatus?.demo ?? null, capabilities: state.instance?.capabilities || localStatus?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null, localProfile: localProfile ? { id: localProfile.id, displayName: localProfile.displayName || null, localIdentityId: localProfile.localIdentityId || null } : null, needsLocalProfile };
 }
 
 async function connect(url, { local = false, name = local ? '本地 CrewRouter' : 'CrewRouter', id, displayName, localIdentityId } = {}) {
@@ -49,11 +51,13 @@ async function connect(url, { local = false, name = local ? '本地 CrewRouter' 
   state.instance = { ...profile, profile: { id: profile.id, name: profile.name, lastConnectedAt: profile.lastConnectedAt } };
   try {
     await state.mainWindow.loadURL(local ? `${state.currentTarget}/console` : state.currentTarget);
+    if (local) await state.mainWindow.webContents.executeJavaScript(`(() => { let button = document.getElementById('desktop-settings'); if (!button) { button = document.createElement('button'); button.id = 'desktop-settings'; button.type = 'button'; button.textContent = '⚙ Desktop 设置'; Object.assign(button.style, { position: 'fixed', top: '12px', right: '16px', zIndex: '2147483647', padding: '8px 12px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', color: 'inherit', cursor: 'pointer' }); document.body.appendChild(button); } button.onclick = () => window.crewrouterDesktop?.openSettings?.(); })()`, true);
   } catch (error) {
     // A redirect can supersede the initial navigation after the target is already loaded.
     if (error?.code !== 'ERR_ABORTED' && error?.errno !== -3) throw error;
   }
   sendStatus({ message: `${profile.edition} Server 已连接`, ...currentStatus() });
+  if (local) createSettingsWindow();
   return currentStatus();
 }
 
@@ -114,7 +118,9 @@ function getWindowWebPreferences() { return { preload: path.join(__dirname, 'pre
 function isRendererFrame(event) {
   let framePath = '';
   try { const frameUrl = new URL(event.senderFrame?.url || ''); if (frameUrl.protocol === 'file:') framePath = decodeURIComponent(frameUrl.pathname); } catch {}
-  return Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && framePath === rendererEntry && !state.currentTarget);
+  let localConsole = false;
+  try { localConsole = state.mode === 'local' && state.instance?.runtime === 'desktop-local' && new URL(event.senderFrame?.url || '').origin === state.currentTarget; } catch {}
+  return Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && (framePath === rendererEntry || localConsole) && (!state.currentTarget || localConsole));
 }
 function allowedNavigation(target) {
   try { const url = new URL(target); if (url.protocol === 'file:') return url.pathname === rendererEntry && !state.currentTarget; return Boolean(state.currentTarget && url.origin === state.currentTarget); } catch { return false; }
@@ -123,6 +129,15 @@ async function openSafeExternal(raw) {
   const result = await validateRemoteUrl(raw);
   if (!result.ok) fail(result.error);
   return electron.shell.openExternal(result.url.toString());
+}
+function createSettingsWindow() {
+  if (state.settingsWindow && !state.settingsWindow.isDestroyed()) { state.settingsWindow.focus(); return; }
+  state.settingsWindow = new electron.BrowserWindow({ width: 760, height: 720, minWidth: 600, webPreferences: { ...getWindowWebPreferences(), preload: path.join(__dirname, 'settings-preload.js') }, title: 'CrewRouter Desktop Settings' });
+  state.settingsWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  state.settingsWindow.webContents.on('will-navigate', (event, url) => { try { if (new URL(url).protocol !== 'file:' || decodeURIComponent(new URL(url).pathname) !== settingsEntry) event.preventDefault(); } catch { event.preventDefault(); } });
+  state.settingsWindow.webContents.on('will-attach-webview', (event) => event.preventDefault());
+  state.settingsWindow.loadFile(settingsEntry);
+  state.settingsWindow.on('closed', () => { state.settingsWindow = null; });
 }
 function createWindow() {
   const width = Number(process.env.CREWROUTER_WINDOW_WIDTH) || 960;
@@ -159,7 +174,16 @@ function registerIpc() {
     if (active.mode === 'local') return startLocal(active.displayName);
     return connect(active.url, { name: active.name });
   });
-  ipcMain.handle('desktop:restart-local', async (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return startLocal(); });
+  const isSettingsFrame = (event) => Boolean(state.settingsWindow && event.sender === state.settingsWindow.webContents && event.senderFrame?.isMainFrame !== false && (() => { try { return new URL(event.senderFrame?.url || '').protocol === 'file:' && decodeURIComponent(new URL(event.senderFrame.url).pathname) === settingsEntry; } catch { return false; } })());
+  ipcMain.handle('desktop:restart-local', async (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return startLocal(); });
+  ipcMain.handle('desktop:open-settings', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); createSettingsWindow(); });
+
+  ipcMain.handle('desktop:get-settings', (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return { status: currentStatus(), profiles: state.connection.listProfiles(), settings: state.connection.store.getSettings(), local: state.local?.getStatus() || null }; });
+  ipcMain.handle('desktop:save-settings', (event, settings) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return state.connection.store.saveSettings(settings); });
+  ipcMain.handle('desktop:rename-profile', (event, id, name) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return state.connection.store.rename(id, name); });
+  ipcMain.handle('desktop:delete-profile', (event, id) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); if (state.localProfile?.id === id || state.connection.activeProfile()?.id === id) fail('不能删除当前连接 profile'); return state.connection.store.remove(id); });
+  ipcMain.handle('desktop:stop-local', async (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); if (state.local) await state.local.stop(); state.local = null; state.mode = 'local'; return currentStatus(); });
+  ipcMain.handle('desktop:get-diagnostics', (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); const active = state.connection.activeProfile(); return { app: 'CrewRouter Desktop', version: electron.app.getVersion(), runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, mode: state.mode, target: state.currentTarget, profileId: active?.id || null, localServer: Boolean(state.local?.getStatus().ready) }; });
   ipcMain.handle('desktop:quit', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); electron.app.quit(); });
 }
 function bootstrap() {
@@ -178,7 +202,7 @@ function bootstrap() {
     const activeProfile = state.connection.activeProfile();
     if (activeProfile?.mode === 'local' && activeProfile.displayName) state.localProfile = activeProfile;
     createWindow();
-    if (activeProfile?.mode === 'local' && activeProfile.displayName) startLocal(activeProfile.displayName).catch((error) => sendStatus({ error: `本地服务启动失败：${error.message}` }));
+    if (activeProfile?.mode === 'local' && activeProfile.displayName && state.connection.store.getSettings().autoConnect) startLocal(activeProfile.displayName).catch((error) => sendStatus({ error: `本地服务启动失败：${error.message}` }));
     const protocolArg = process.argv.find((value) => value.startsWith('crewrouter://'));
     if (protocolArg) handleProtocol(protocolArg);
   });
