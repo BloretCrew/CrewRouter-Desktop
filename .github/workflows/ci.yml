@@ -53,11 +53,16 @@ jobs:
             command: npm run pack:win
             artifact: crewrouter-desktop-windows
             path: dist/*.exe
-          - os: macos-latest
-            platform: macos
-            command: npm run pack:mac
-            artifact: crewrouter-desktop-macos
-            path: dist/*.dmg
+          - os: macos-13
+            platform: macos-intel
+            command: npm run pack:mac -- --x64
+            artifact: crewrouter-desktop-macos-intel
+            path: dist/*-x64.dmg
+          - os: macos-14
+            platform: macos-arm64
+            command: npm run pack:mac -- --arm64
+            artifact: crewrouter-desktop-macos-arm64
+            path: dist/*-arm64.dmg
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout desktop repository

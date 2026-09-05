@@ -38,6 +38,7 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "build/icons/crewrouter.png",
     "files": [
       "src/**/*",
       "scripts/**/*",
@@ -55,6 +56,7 @@
       }
     ],
     "linux": {
+      "icon": "build/icons/crewrouter.png",
       "target": [
         "AppImage"
       ],
@@ -67,11 +69,13 @@
       }
     ],
     "win": {
+      "icon": "build/icons/crewrouter.ico",
       "target": [
         "nsis"
       ]
     },
     "mac": {
+      "icon": "build/icons/crewrouter.png",
       "target": [
         "dmg"
       ],
