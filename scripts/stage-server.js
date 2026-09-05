@@ -7,7 +7,8 @@ const path = require('node:path');
 
 const source = path.resolve(process.env.CREWROUTER_RELEASE_ROOT || process.argv[2] || path.resolve(__dirname, '../../dist'));
 const destination = path.resolve(process.env.CREWROUTER_STAGE_ROOT || path.join(__dirname, '..', 'staging', 'server'));
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+const npmCommand = process.execPath;
+const npmScript = process.env.npm_execpath || (process.platform === 'win32' ? path.join(process.env.APPDATA || '', 'npm', 'node_modules', 'npm', 'bin', 'npm-cli.js') : 'npm');
 const files = ['server.js', 'package.json'];
 const directories = ['public', 'lang'];
 const forbidden = /(^|\/)(?:\.env(?:\..*)?|.*\.(?:db|sqlite|sqlite3)|credentials?|secrets?)(?:$|\/)/i;
@@ -68,7 +69,7 @@ if (!fs.existsSync(source)) {
     files.forEach(copyFile);
     directories.forEach(copyDirectory);
     patchDesktopInstancePayload();
-    execFileSync(npmCommand, ['install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], {
+    execFileSync(npmCommand, [npmScript, 'install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], {
       cwd: destination,
       stdio: 'inherit',
     });
