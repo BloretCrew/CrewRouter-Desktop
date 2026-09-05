@@ -69,12 +69,6 @@
     "win": {
       "target": [
         "nsis"
-      ],
-      "extraResources": [
-        {
-          "from": "staging/server",
-          "to": "server"
-        }
       ]
     },
     "mac": {
