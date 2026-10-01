@@ -10,8 +10,7 @@
     "test": "node --test test/*.test.js",
     "dev": "NODE_ENV=development electron .",
     "prepare:renderer": "node scripts/prepare-blora-assets.js",
-    "test": "node --test test/*.test.js",
-    "syntax": "node --check src/url-policy.js && node --check src/profile-store.js && node --check src/connection-manager.js && node --check src/redirect-flow.js && node --check src/server-manager.js && node --check src/main.js && node --check src/preload.js && node --check src/renderer/renderer.js && node --check scripts/stage-server.js && node --check scripts/test-local-server.js && node --check test/core.test.js && node --check test/main.test.js && node --check test/server-manager.test.js",
+    "syntax": "node scripts/check-syntax.js",
     "test:local-server": "node scripts/test-local-server.js",
     "test:packaged-server": "node scripts/test-local-server.js --packaged",
     "test:electron:local-username": "node scripts/run-electron-acceptance.js",
@@ -25,7 +24,7 @@
     "build": "npm run stage:server && npm run validate:server-bundle && electron-builder --linux AppImage --publish never"
   },
   "engines": {
-    "node": ">=16"
+    "node": ">=18"
   },
   "devDependencies": {
     "electron": "^31.7.7",
@@ -44,7 +43,13 @@
       "scripts/**/*",
       "package.json",
       "README.md",
-      "node_modules/@bloret-crew/blora-design/**/*"
+      "node_modules/@bloret-crew/blora-design/**/*",
+      "node_modules/embedded-postgres/**/*",
+      "node_modules/@embedded-postgres/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/embedded-postgres/**/*",
+      "node_modules/@embedded-postgres/**/*"
     ],
     "extraResources": [
       {
@@ -65,7 +70,9 @@
     "protocols": [
       {
         "name": "CrewRouter Desktop Link",
-        "schemes": ["crewrouter"]
+        "schemes": [
+          "crewrouter"
+        ]
       }
     ],
     "win": {
@@ -91,6 +98,6 @@
     }
   },
   "dependencies": {
-    "@bloret-crew/blora-design": "2.0.8"
+    "@bloret-crew/blora-design": "2.1.0"
   }
 }

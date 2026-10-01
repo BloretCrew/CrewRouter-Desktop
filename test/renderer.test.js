@@ -10,114 +10,77 @@ const packageRoot = path.join(__dirname, '..', 'node_modules', '@bloret-crew', '
 const vendorRoot = path.join(rendererDir, 'vendor', 'blora-design');
 const html = fs.readFileSync(path.join(rendererDir, 'index.html'), 'utf8');
 const css = fs.readFileSync(path.join(rendererDir, 'styles.css'), 'utf8');
-const js = fs.readFileSync(path.join(rendererDir, 'renderer.js'), 'utf8');
-const settingsHtml = fs.readFileSync(path.join(rendererDir, 'settings.html'), 'utf8');
-const settingsJs = fs.readFileSync(path.join(rendererDir, 'settings.js'), 'utf8');
+const js = fs.readFileSync(path.join(rendererDir, 'launcher.js'), 'utf8');
+const i18nSource = fs.readFileSync(path.join(rendererDir, 'i18n.js'), 'utf8');
+const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
 
-test('renderer resolves the published Blora 2 package and loads its CSS', () => {
+function loadI18n() {
+  const sandbox = { window: {}, document: { documentElement: {}, querySelectorAll: () => [] } };
+  new Function('window', 'document', i18nSource)(sandbox.window, sandbox.document);
+  return sandbox.window.CrewRouterDesktopI18n;
+}
+
+test('launcher resolves the published Blora 2 package and loads vendored CSS only', () => {
   const packageJson = JSON.parse(fs.readFileSync(path.join(packageRoot, 'package.json'), 'utf8'));
   assert.match(packageJson.version, /^2\./);
-  assert.equal(packageJson.type, 'module');
-  assert.equal(require.resolve('@bloret-crew/blora-design/package.json'), path.join(packageRoot, 'package.json'));
-  for (const file of ['dist/blora.css', 'dist/tokens.dark.css', 'dist/components/card/card.css', 'dist/components/badge/badge.css', 'dist/components/input/input.css', 'dist/components/button/button.css']) {
-    const vendorFile = file.replace(/^dist\//, '');
-    assert.equal(fs.existsSync(path.join(packageRoot, file)), true, file);
-    assert.equal(fs.existsSync(path.join(vendorRoot, vendorFile)), true, `vendor/${vendorFile}`);
-    assert.match(html, new RegExp(`vendor\\/blora-design\\/${vendorFile.replaceAll('/', '\\/')}`));
+  for (const link of html.match(/href="vendor\/blora-design\/[^"]+"/g) || []) {
+    const file = link.slice('href="vendor/blora-design/'.length, -1);
+    assert.equal(fs.existsSync(path.join(vendorRoot, file)), true, `vendor/${file} 缺失`);
+    assert.equal(fs.existsSync(path.join(packageRoot, 'dist', file)), true, `dist/${file} 缺失`);
   }
+  assert.match(html, /vendor\/blora-design\/blora\.global\.js/);
+  for (const reference of html.match(/(?:src|href)="([^"]+)"/g)) assert.doesNotMatch(reference, /https?:/, `启动页不加载远程资源：${reference}`);
+  assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js"/);
+  assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/, '页面样式不得声明自己的 token');
 });
 
-test('renderer keeps visible content without CSS or preload bridge', () => {
-  assert.match(html, /<main class="blora-shell"/);
-  assert.match(html, /开始使用 CrewRouter/);
-  assert.match(html, /选择一种方式/);
-  assert.match(html, /连接服务器/);
-  assert.match(html, /本地使用/);
-  assert.match(html, /一键启动本地服务，无需登录/);
-  assert.match(html, /<form id="connection-form"/);
-  assert.match(js, /preload API unavailable/);
-  assert.match(html, /runtime-error/);
-  assert.match(html, /id="back"[^>]+type="button"/);
-  assert.match(html, /id="remote-choice"/);
+test('launcher markup exposes one section per state and the controls the main process expects', () => {
+  const views = [...html.matchAll(/<section class="launcher__view" data-view="([a-z-]+)"/g)].map((match) => match[1]);
+  assert.deepEqual(views, ['welcome', 'local-name', 'remote-method', 'custom-url', 'progress', 'error', 'settings']);
+  for (const id of ['choose-local', 'choose-remote', 'profile-list', 'saved-panel', 'local-profile-form', 'local-username-field', 'connection-form', 'custom-url-field', 'official-remote', 'custom-remote', 'progress-bar', 'official-wait', 'reopen-login', 'cancel-pending', 'error-result', 'retry', 'error-open-logs', 'dismiss-error', 'open-settings', 'pref-autoConnect', 'pref-theme', 'pref-language', 'local-restart', 'local-stop', 'copy-diagnostics', 'restart-app', 'quit-app', 'confirm-dialog', 'rename-dialog', 'inline-alert', 'local-chip']) {
+    assert.match(html, new RegExp(`id="${id}"`), `缺少 #${id}`);
+  }
+  assert.match(html, /<blora-progress id="progress-bar"/);
+  assert.match(html, /<blora-result id="error-result" variant="error"/);
+  assert.match(html, /<blora-dialog id="confirm-dialog"[^>]*close-on-outside-click="false"/);
+  assert.match(html, /<blora-switch id="pref-autoConnect"/);
+  assert.match(html, /<blora-select id="pref-theme"/);
+  assert.match(html, /class="blora-descriptions/);
+  assert.doesNotMatch(html, /⌘Q|settings\.html|desktop-settings"/);
+  assert.equal((html.match(/type="submit"/g) || []).length, 2);
+  for (const button of html.match(/<button[^>]*>/g)) assert.match(button, /type="(button|submit)"/, `按钮缺少 type: ${button}`);
 });
 
-test('renderer keeps the desktop viewport layout responsive', () => {
+test('launcher script renders from status snapshots and never writes HTML strings', () => {
+  assert.doesNotMatch(js, /innerHTML|outerHTML|insertAdjacentHTML/);
+  assert.match(js, /api\.onStatus\(render\)/);
+  for (const method of ['startLocal', 'connectCustomRemote', 'openOfficialLogin', 'reopenOfficialLogin', 'cancelPending', 'clearError', 'retry', 'openLogs', 'listProfiles', 'switchProfile', 'renameProfile', 'deleteProfile', 'getDesktopSettings', 'saveDesktopSettings', 'restartLocal', 'stopLocal', 'getDiagnostics', 'restartApp', 'quit']) {
+    assert.match(js, new RegExp(`api\\.${method}\\(`), `launcher 未使用 ${method}`);
+    assert.match(preload, new RegExp(`\\b${method}:`), `preload 未暴露 ${method}`);
+  }
+  assert.doesNotMatch(preload, /chooseMode|connectRemote|openSettings|setupLocalProfile|openOfficialDemo/);
+  assert.match(js, /awaiting-official-login/);
+  assert.match(js, /status\.prefill\?\.serverUrl/);
+  assert.match(js, /Error invoking remote method/);
+  assert.match(js, /confirmDialog\(/);
+  assert.doesNotMatch(js, /window\.confirm|window\.prompt|\balert\(/);
+});
+
+test('i18n dictionaries are complete for both languages and switch the document language', () => {
+  const i18n = loadI18n();
+  const zhKeys = i18n.keys;
+  assert.ok(zhKeys.length > 60);
+  assert.equal(i18n.t('nav.back'), '返回');
+  assert.equal(i18n.setLanguage('en'), 'en');
+  for (const key of zhKeys) assert.ok(i18n.has('en', key), `en 缺少 ${key}`);
+  assert.equal(i18n.t('saved.lastConnected', { time: 'now' }), 'Last connected now');
+  assert.equal(i18n.setLanguage('fr'), 'zh');
+  for (const key of html.match(/data-i18n(?:-[a-z-]+)?="([^"]+)"/g).map((item) => item.replace(/.*="([^"]+)"/, '$1'))) assert.ok(zhKeys.includes(key), `HTML 引用了未定义的文案 ${key}`);
+});
+
+test('launcher styles keep the two-column choice grid responsive and hidden views collapsed', () => {
+  assert.match(css, /\[hidden\] \{ display: none !important; \}/);
   assert.match(css, /grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(css, /@media \(min-width: 701px\) and \(max-height: 760px\)/);
+  assert.match(css, /@media \(max-width: 700px\)/);
   assert.match(css, /overflow-wrap: anywhere/);
-  assert.match(html, /class="connection-hero"/);
-  assert.match(html, /class="blora-card mode-option"/);
-  assert.match(html, /id="remote-choice-step"[^>]+hidden/);
-  assert.match(html, /id="remote-choice"[^>]+aria-controls="remote-choice-step"/);
-  assert.match(html, /id="official-remote"[^>]+class="blora-card mode-option"/);
-  assert.match(html, /通过官方站连接/);
-  assert.match(html, /id="official-remote-step"[^>]+hidden/);
-  assert.match(html, /id="official-remote-form"/);
-  assert.match(html, /id="official-remote-url"/);
-  assert.match(html, /id="custom-remote"[^>]+class="blora-card mode-option"/);
-  assert.match(html, /id="remote-step"[^>]+hidden/);
-  assert.match(html, /id="remote-url"[^>]+class="blora-input"/);
-  assert.match(html, /id="local"[^>]+class="blora-card mode-option"/);
-  assert.match(html, /id="remote"[^>]+class="blora-button"/);
-});
-
-test('renderer uses official Blora 2 structure without the 1.x API or local token fallback', () => {
-  assert.match(html, /class="blora-shell"/);
-  assert.match(html, /class="blora-card mode-option"/);
-  assert.match(html, /class="blora-button" data-variant="primary" data-block/);
-  assert.match(html, /class="blora-button" data-variant="primary" data-block/);
-  assert.equal((html.match(/class="blora-button" data-variant="primary" data-block/g) || []).length, 3);
-  assert.doesNotMatch(`${html}${css}${js}`, /blora-btn|Blora\.init|blora\.js/);
-  assert.doesNotMatch(css, /--blora-[a-z-]+\s*:/);
-});
-
-test('connection controls expose accessible labels and live feedback', () => {
-  assert.match(html, /for="remote-url"/);
-  assert.match(html, /aria-describedby="url-hint url-error"/);
-  assert.match(html, /aria-live="polite"/);
-  assert.match(html, /id="status" role="status"/);
-  assert.match(html, /id="quit"[^>]+type="button"/);
-});
-
-test('renderer validates empty and unsupported remote URLs before IPC', () => {
-  assert.match(js, /if \(!url\)/);
-  assert.match(js, /仅支持 http:\/\/ 或 https:\/\/ 地址/);
-  assert.match(js, /urlEl\.setAttribute\('aria-invalid', message \? 'true' : 'false'\)/);
-});
-
-test('renderer guards repeated actions and renders server metadata/errors', () => {
-  assert.match(js, /if \(isBusy\) return/);
-  assert.match(js, /status\.runtime/);
-  assert.match(js, /status\.edition/);
-  assert.match(js, /status\.auth/);
-  assert.match(js, /status\.auth\.methods/);
-  assert.match(js, /正在验证目标并打开官方 Demo/);
-  assert.match(js, /officialRemoteForm/);
-  assert.match(js, /正在直接连接自定义服务器/);
-  assert.match(js, /connectCustomRemote/);
-  assert.match(js, /setStatus\(error\?\.message/);
-});
-
-test('remote renderer hides settings and does not expose the privileged entry point', () => {
-  assert.match(fs.readFileSync(path.join(rendererDir, 'renderer.js'), 'utf8'), /settingsButton\.hidden = status\.mode === 'remote' \|\| status\.runtime !== 'desktop-local'/);
-  assert.match(fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8'), /id = 'desktop-settings'/);
-  assert.match(settingsJs, /remoteNote/);
-  assert.doesNotMatch(settingsJs, /trustedRemote|remoteTrust|highPrivilege/);
-});
-
-test('desktop settings are localized, bridge-safe, system-theme aware and remote-limited', () => {
-  assert.match(settingsHtml, /Content-Security-Policy/);
-  assert.match(settingsJs, /required =/);
-  assert.match(settingsJs, /prefers-color-scheme/);
-  assert.match(settingsJs, /remoteNote/);
-  assert.match(settingsJs, /copied/);
-  assert.match(settingsJs, /escapeHtml\(p.id\)/);
-  assert.match(settingsJs, /return; }/);
-});
-
-test('main registers visible diagnostics for failed renderer loads', () => {
-  const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
-  assert.match(mainSource, /did-fail-load/);
-  assert.match(mainSource, /render-process-gone/);
-  assert.match(mainSource, /console-message/);
 });
