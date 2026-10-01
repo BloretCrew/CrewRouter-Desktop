@@ -7,8 +7,6 @@ const path = require('node:path');
 
 const source = path.resolve(process.env.CREWROUTER_RELEASE_ROOT || process.argv[2] || path.resolve(__dirname, '../../dist'));
 const destination = path.resolve(process.env.CREWROUTER_STAGE_ROOT || path.join(__dirname, '..', 'staging', 'server'));
-const npmCommand = process.execPath;
-const npmScript = process.env.npm_execpath || (process.platform === 'win32' ? path.join(process.env.APPDATA || '', 'npm', 'node_modules', 'npm', 'bin', 'npm-cli.js') : 'npm');
 const files = ['server.js', 'package.json'];
 const directories = ['public', 'lang'];
 const forbidden = /(^|\/)(?:\.env(?:\..*)?|.*\.(?:db|sqlite|sqlite3)|credentials?|secrets?)(?:$|\/)/i;
@@ -40,10 +38,11 @@ function copyDirectory(relative) {
 function patchDesktopInstancePayload() {
   const appPath = path.join(destination, 'public', 'js', 'app.js');
   if (!fs.existsSync(appPath)) throw new Error('Expected public/js/app.js in Server bundle');
-  const sourceText = fs.readFileSync(appPath, 'utf8');
+  const sourceText = fs.readFileSync(appPath, 'utf8').replace(/\r\n/g, '\n');
   const instanceMarker = "      this.instance = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;";
   const instanceReplacement = "      const instancePayload = window.CrewRouterEditionBadge\n        ? await window.CrewRouterEditionBadge.load()\n        : null;\n      this.instance = instancePayload?.data && typeof instancePayload.data === 'object'\n        ? instancePayload.data\n        : instancePayload;";
-  if (sourceText.includes(instanceMarker)) fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
+  if (!sourceText.includes(instanceMarker)) throw new Error('Expected instance bootstrap was not found in staged app.js');
+  fs.writeFileSync(appPath, sourceText.replace(instanceMarker, instanceReplacement));
 }
 
 function assertSafeBundle() {
@@ -69,7 +68,12 @@ if (!fs.existsSync(source)) {
     files.forEach(copyFile);
     directories.forEach(copyDirectory);
     patchDesktopInstancePayload();
-    execFileSync(npmCommand, [npmScript, 'install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'], {
+    const npmArgs = ['install', '--omit=dev', '--ignore-scripts', '--no-package-lock', '--no-audit', '--no-fund'];
+    const npmCommand = process.platform === 'win32'
+      ? (process.env.npm_node_execpath || process.execPath)
+      : (process.env.npm_execpath || 'npm');
+    if (process.platform === 'win32' && process.env.npm_execpath) npmArgs.unshift(process.env.npm_execpath);
+    execFileSync(npmCommand, npmArgs, {
       cwd: destination,
       stdio: 'inherit',
     });

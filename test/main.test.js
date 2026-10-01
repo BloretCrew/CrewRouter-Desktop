@@ -18,9 +18,18 @@ test('main uses the official CrewRouter demo by default', () => {
   assert.match(source, /process\.env\.CREWROUTER_DEMO_URL \|\| 'https:\/\/crewrouter\.bloret\.net'/);
   assert.match(source, /async function connectCustomRemote/);
   assert.match(source, /desktop:connect-custom-remote/);
-  assert.match(source, /if \(active\.mode === 'local'\) return startLocal\(active\.displayName\)/);
+  assert.match(source, /if \(profile\.mode === 'local'\) return startLocal\(profile\.displayName, profile\)/);
+  assert.match(source, /officialTarget: true/);
+  assert.match(source, /startLocal\(profile\.displayName, profile\)/);
   assert.match(source, /state\.connection\.inspect\(target\.url\.toString\(\)\)/);
   assert.match(source, /targetOrigin/);
+  assert.match(source, /validateRemoteUrl\(DEMO_URL, \{ resolveDns: false \}\)/);
+  assert.match(source, /helper_login/);
+  assert.match(source, /crewrouter-desktop/);
+  assert.match(source, /resolveDns: officialTarget \? false : undefined/);
+  assert.match(source, /oauth\/desktop-session/);
+  assert.match(source, /cookieStore\.remove\(cookieUrl, cookieName\)/);
+  assert.match(source, /选择要登录的 CrewRouter/);
 });
 
 test('main status exposes an explicit connect state', () => {
@@ -42,6 +51,12 @@ test('main status exposes an explicit connect state', () => {
 test('forged URL or header context cannot authorize privileged settings IPC', () => {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');
   assert.match(source, /const isSettingsFrame = \(event\) => Boolean\(state\.settingsWindow/);
+  assert.match(source, /const isConnectedMainFrame = \(event\) => Boolean\(state\.mainWindow/);
+  assert.match(source, /desktop:restart-local/);
+  assert.match(source, /desktop:restart-app/);
+  assert.match(source, /desktop:open-oobe/);
+  assert.match(source, /const profile = state\.connection\.listProfiles\(\)\.find/);
+  assert.match(source, /activeProfile\?\.mode === 'remote'/);
   assert.match(source, /event\.sender === state\.settingsWindow\.webContents/);
   assert.match(source, /settingsEntry/);
   assert.doesNotMatch(source, /trustedRemote|x-crewrouter|authorization.*settings/i);
@@ -58,7 +73,7 @@ test('preload bridge is present at the formal renderer path', () => {
   assert.equal(fs.existsSync(path.join(__dirname, '..', 'src', 'preload.js')), true);
   const preload = fs.readFileSync(path.join(__dirname, '..', 'src', 'preload.js'), 'utf8');
   assert.match(preload, /contextBridge\.exposeInMainWorld\('crewrouterDesktop'/);
-  assert.doesNotMatch(preload, /restartLocal/);
+  assert.match(preload, /restartLocal/);
   const settingsPreload = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings-preload.js'), 'utf8');
   assert.match(settingsPreload, /restartLocal/);
   const mainSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'main.js'), 'utf8');

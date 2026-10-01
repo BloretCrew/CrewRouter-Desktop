@@ -4,20 +4,24 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('crewrouterDesktop', Object.freeze({
   getStatus: () => ipcRenderer.invoke('desktop:get-status'),
+  openOobe: () => ipcRenderer.invoke('desktop:open-oobe'),
   chooseMode: (mode) => ipcRenderer.invoke('desktop:choose-mode', mode),
   setupLocalProfile: (displayName) => ipcRenderer.invoke('desktop:setup-local-profile', displayName),
   connectRemote: (url) => ipcRenderer.invoke('desktop:connect-remote', url),
+  openOfficialDemo: () => ipcRenderer.invoke('desktop:open-official-demo'),
   connectCustomRemote: (url) => ipcRenderer.invoke('desktop:connect-custom-remote', url),
   openExternal: (url) => ipcRenderer.invoke('desktop:open-external', url),
   listProfiles: () => ipcRenderer.invoke('desktop:list-profiles'),
   switchProfile: (id) => ipcRenderer.invoke('desktop:switch-profile', id),
   quit: () => ipcRenderer.invoke('desktop:quit'),
+  restartApp: () => ipcRenderer.invoke('desktop:restart-app'),
   openSettings: () => ipcRenderer.invoke('desktop:open-settings'),
   getDesktopSettings: () => ipcRenderer.invoke('desktop:get-settings'),
   saveDesktopSettings: (settings) => ipcRenderer.invoke('desktop:save-settings', settings),
   renameProfile: (id, name) => ipcRenderer.invoke('desktop:rename-profile', id, name),
   deleteProfile: (id) => ipcRenderer.invoke('desktop:delete-profile', id),
   stopLocal: () => ipcRenderer.invoke('desktop:stop-local'),
+  restartLocal: () => ipcRenderer.invoke('desktop:restart-local'),
   getDiagnostics: () => ipcRenderer.invoke('desktop:get-diagnostics'),
   onStatus: (callback) => {
     const listener = (_event, status) => callback(status);

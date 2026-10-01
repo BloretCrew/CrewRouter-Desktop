@@ -16,20 +16,22 @@ try { electron = require('electron'); } catch { electron = null; }
 const DEMO_URL = process.env.CREWROUTER_DEMO_URL || 'https://crewrouter.bloret.net';
 const rendererEntry = path.join(__dirname, 'renderer', 'index.html');
 const settingsEntry = path.join(__dirname, 'renderer', 'settings.html');
-const state = { mainWindow: null, settingsWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false, localProfile: null, localIdentityId: null };
+const state = { mainWindow: null, settingsWindow: null, currentTarget: null, mode: 'connect', instance: null, local: null, connection: null, quitting: false, localProfile: null, localIdentityId: null, officialLogin: null };
 const redirectFlow = new RedirectFlow();
 
 function requestFetch(url, options = {}) {
   return new Promise((resolve, reject) => {
     const target = new URL(url);
-    const request = (target.protocol === 'https:' ? https : http).get(target, { headers: options.headers }, (response) => {
+    const transport = target.protocol === 'https:' ? https : http;
+    const request = transport.request(target, { method: options.method || 'GET', headers: options.headers }, (response) => {
       let body = '';
       response.setEncoding('utf8');
       response.on('data', (chunk) => { body += chunk; });
-      response.on('end', () => resolve({ ok: response.statusCode >= 200 && response.statusCode < 300, status: response.statusCode, json: async () => JSON.parse(body) }));
+      response.on('end', () => resolve({ ok: response.statusCode >= 200 && response.statusCode < 300, status: response.statusCode, headers: response.headers, json: async () => JSON.parse(body) }));
     });
     request.setTimeout(8000, () => request.destroy(new Error('连接超时')));
     request.once('error', reject);
+    request.end(options.body || undefined);
   });
 }
 
@@ -43,21 +45,20 @@ function currentStatus() {
   return { mode: state.mode, target: state.currentTarget, runtime: state.instance?.runtime || localStatus?.runtime || null, edition: state.instance?.edition || localStatus?.edition || null, auth: state.instance?.auth || localStatus?.auth || null, demo: state.instance?.demo ?? localStatus?.demo ?? null, capabilities: state.instance?.capabilities || localStatus?.capabilities || {}, protocolVersion: state.instance?.protocolVersion || null, profile: state.instance?.profile || null, localProfile: localProfile ? { id: localProfile.id, displayName: localProfile.displayName || null, localIdentityId: localProfile.localIdentityId || null } : null, needsLocalProfile };
 }
 
-async function connect(url, { local = false, name = local ? '本地 CrewRouter' : 'CrewRouter', id, displayName, localIdentityId } = {}) {
+async function connect(url, { local = false, name = local ? '本地 CrewRouter' : 'CrewRouter', id, displayName, localIdentityId, officialTarget = false } = {}) {
   sendStatus({ message: local ? '正在读取本地服务信息…' : '正在检查远程服务器…' });
-  const profile = await state.connection.connect({ id, url, mode: local ? 'local' : 'remote', allowLocalhost: local, name, displayName, localIdentityId });
+  const profile = await state.connection.connect({ id, url, mode: local ? 'local' : 'remote', allowLocalhost: local, resolveDns: officialTarget ? false : undefined, name, displayName, localIdentityId });
   state.currentTarget = new URL(profile.url).origin;
   state.mode = local ? 'local' : 'remote';
   state.instance = { ...profile, profile: { id: profile.id, name: profile.name, lastConnectedAt: profile.lastConnectedAt } };
   try {
     await state.mainWindow.loadURL(local ? `${state.currentTarget}/console` : state.currentTarget);
-    if (local) await state.mainWindow.webContents.executeJavaScript(`(() => { let button = document.getElementById('desktop-settings'); if (!button) { button = document.createElement('button'); button.id = 'desktop-settings'; button.type = 'button'; button.textContent = '⚙ Desktop 设置'; Object.assign(button.style, { position: 'fixed', top: '12px', right: '16px', zIndex: '2147483647', padding: '8px 12px', borderRadius: '8px', border: '1px solid currentColor', background: 'transparent', color: 'inherit', cursor: 'pointer' }); document.body.appendChild(button); } button.onclick = () => window.crewrouterDesktop?.openSettings?.(); })()`, true);
+    if (local) await state.mainWindow.webContents.executeJavaScript(`(() => { document.getElementById('desktop-settings')?.remove(); const card = document.getElementById('desktopSettingsCard'); if (card) card.hidden = false; })()`, true);
   } catch (error) {
     // A redirect can supersede the initial navigation after the target is already loaded.
     if (error?.code !== 'ERR_ABORTED' && error?.errno !== -3) throw error;
   }
   sendStatus({ message: `${profile.edition} Server 已连接`, ...currentStatus() });
-  if (local) createSettingsWindow();
   return currentStatus();
 }
 
@@ -75,6 +76,74 @@ async function startRemoteRedirect(rawTarget) {
   return { ...currentStatus(), mode: 'redirecting', target: null };
 }
 
+async function openOfficialDemo() {
+  // 官方站负责展示登录过的实例，用户选择后再跳转到目标 CrewRouter。
+  const demo = await validateRemoteUrl(DEMO_URL, { resolveDns: false });
+  if (!demo.ok) fail(`官方站地址无效：${demo.error}`);
+  if (state.officialLogin) { state.officialLogin.close(); state.officialLogin = null; }
+  const nonce = crypto.randomBytes(24).toString('base64url');
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  const server = http.createServer((request, response) => {
+    const callbackUrl = new URL(request.url, 'http://127.0.0.1');
+    if (request.method !== 'GET' || callbackUrl.pathname !== '/callback') { response.writeHead(404); response.end(); return; }
+    const stateParam = callbackUrl.searchParams.get('state') || '';
+    const code = callbackUrl.searchParams.get('code') || '';
+    let payload = null;
+    try { payload = JSON.parse(Buffer.from(stateParam, 'base64url').toString('utf8')); } catch {}
+    const valid = payload?.nonce === nonce && code && typeof payload?.router_url === 'string';
+    response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
+    response.end(valid ? '<!doctype html><meta charset="utf-8"><title>CrewRouter Desktop</title><p>登录已完成，请回到 CrewRouter Desktop。</p>' : '<!doctype html><meta charset="utf-8"><title>CrewRouter Desktop</title><p>登录回调无效，请关闭此页面并重试。</p>');
+    server.close();
+    state.officialLogin = null;
+    if (valid) {
+      validateRemoteUrl(payload.router_url, { resolveDns: false }).then(async (target) => {
+        if (!target.ok) throw new Error(target.error);
+        const exchange = await requestFetch(new URL('/oauth/desktop-session', target.url), {
+          method: 'POST',
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({ code, client_id: 'crewrouter-desktop', code_verifier: verifier }).toString()
+        });
+        if (!exchange.ok) throw new Error(`Web Session 交换失败（HTTP ${exchange.status}）`);
+        sendStatus({ message: '已完成授权，正在建立 Desktop 登录会话…' });
+        const sessionCookie = Array.isArray(exchange.headers?.['set-cookie']) ? exchange.headers['set-cookie'][0] : exchange.headers?.['set-cookie'];
+        if (!sessionCookie) throw new Error('Web Session 交换未返回登录 Cookie');
+        const cookiePair = String(sessionCookie).split(';', 1)[0];
+        const separator = cookiePair.indexOf('=');
+        if (separator <= 0) throw new Error('Web Session 返回的 Cookie 格式无效');
+        const cookieName = cookiePair.slice(0, separator).trim();
+        const cookieValue = cookiePair.slice(separator + 1).trim();
+        const targetUrl = new URL(target.url.toString());
+        const cookieUrl = `${targetUrl.origin}/`;
+        const cookieStore = electron.session.defaultSession.cookies;
+        await cookieStore.remove(cookieUrl, cookieName).catch(() => {});
+        await cookieStore.set({ url: cookieUrl, name: cookieName, value: cookieValue, path: '/', httpOnly: true, secure: targetUrl.protocol === 'https:', sameSite: 'lax' });
+        const installed = await cookieStore.get({ url: cookieUrl, name: cookieName });
+        if (!installed.length || installed[0].value !== cookieValue) throw new Error('Web Session Cookie 写入失败');
+        await state.mainWindow.loadURL(target.url.toString());
+        await state.mainWindow.webContents.executeJavaScript(`(() => { document.getElementById('desktop-settings')?.remove(); const card = document.getElementById('desktopSettingsCard'); if (card) card.hidden = false; })()`, true);
+        state.mode = 'remote';
+        state.currentTarget = target.url.origin;
+        sendStatus({ message: '授权完成，已在 Desktop 中打开目标 CrewRouter。', mode: 'authorized', target: target.url.origin });
+      }).catch((error) => sendStatus({ error: `官方站登录后打开目标失败：${error.message}` }));
+    } else sendStatus({ error: '官方站登录回调无效，请重试。' });
+  });
+  await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
+  state.officialLogin = { server, close: () => server.close() };
+  const redirectUri = `http://127.0.0.1:${server.address().port}/callback`;
+  const loginUrl = new URL('/store', demo.url.origin);
+  loginUrl.searchParams.set('helper_login', '1');
+  loginUrl.searchParams.set('state', nonce);
+  loginUrl.searchParams.set('redirect_uri', redirectUri);
+  loginUrl.searchParams.set('client_id', 'crewrouter-desktop');
+  loginUrl.searchParams.set('scope', 'events:report');
+  loginUrl.searchParams.set('code_challenge', challenge);
+  loginUrl.searchParams.set('code_challenge_method', 'S256');
+  sendStatus({ message: '正在打开官方站，请选择要登录的 CrewRouter…', redirect: true, target: demo.url.origin });
+  await electron.shell.openExternal(loginUrl.toString());
+  return { ...currentStatus(), mode: 'redirecting', target: null };
+}
+
 async function connectCustomRemote(rawUrl) {
   const target = await validateRemoteUrl(rawUrl);
   if (!target.ok) fail(target.error);
@@ -84,9 +153,9 @@ async function connectCustomRemote(rawUrl) {
 
 function localProfileStore() { return state.connection?.store; }
 
-async function startLocal(displayName) {
+async function startLocal(displayName, selectedProfile = null) {
   const active = localProfileStore()?.getActive();
-  const profile = state.localProfile?.mode === 'local' ? state.localProfile : (active?.mode === 'local' ? active : null);
+  const profile = selectedProfile?.mode === 'local' ? selectedProfile : (state.localProfile?.mode === 'local' ? state.localProfile : (active?.mode === 'local' ? active : null));
   const resolvedName = displayName || profile?.displayName;
   if (!resolvedName) fail('首次本地使用需要先设置用户名。');
   const localIdentityId = profile?.localIdentityId || crypto.randomUUID();
@@ -158,33 +227,35 @@ function createWindow() {
 }
 function registerIpc() {
   const { ipcMain } = electron;
-  ipcMain.handle('desktop:get-status', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return currentStatus(); });
+  ipcMain.handle('desktop:get-status', (event) => { if (!isRendererFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return currentStatus(); });
+  ipcMain.handle('desktop:open-oobe', (event) => { if (!isConnectedMainFrame(event)) fail('IPC 来源不可信'); state.currentTarget = null; state.mode = 'connect'; state.instance = null; state.mainWindow.loadFile(rendererEntry); return currentStatus(); });
   ipcMain.handle('desktop:choose-mode', async (event, requested) => { if (!isRendererFrame(event) || requested !== 'local') fail('不支持的模式'); return startLocal(); });
   ipcMain.handle('desktop:setup-local-profile', async (event, displayName) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); const result = validateLocalDisplayName(displayName); if (!result.ok) fail(result.error); return startLocal(result.value); });
   ipcMain.handle('desktop:connect-remote', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return startRemoteRedirect(url); });
+  ipcMain.handle('desktop:open-official-demo', async (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return openOfficialDemo(); });
   ipcMain.handle('desktop:connect-custom-remote', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return connectCustomRemote(url); });
   ipcMain.handle('desktop:open-external', async (event, url) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return openSafeExternal(url); });
-  ipcMain.handle('desktop:list-profiles', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); return state.connection.listProfiles(); });
+  ipcMain.handle('desktop:list-profiles', (event) => { if (!isRendererFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return state.connection.listProfiles(); });
   ipcMain.handle('desktop:switch-profile', async (event, id) => {
-    if (!isRendererFrame(event)) fail('IPC 来源不可信');
-    const profile = state.connection.activeProfile();
-    if (!profile || profile.id !== id) state.connection.switchProfile(id);
-    const active = state.connection.activeProfile();
-    if (!active) fail('profile 不存在');
-    if (active.mode === 'local') return startLocal(active.displayName);
-    return connect(active.url, { name: active.name });
+    if (!isRendererFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信');
+    const profile = state.connection.listProfiles().find((item) => item.id === id);
+    if (!profile) fail('profile 不存在');
+    if (profile.mode === 'local') return startLocal(profile.displayName, profile);
+    return connect(profile.url, { id: profile.id, name: profile.name, displayName: profile.displayName, localIdentityId: profile.localIdentityId, officialTarget: true });
   });
   const isSettingsFrame = (event) => Boolean(state.settingsWindow && event.sender === state.settingsWindow.webContents && event.senderFrame?.isMainFrame !== false && (() => { try { return new URL(event.senderFrame?.url || '').protocol === 'file:' && decodeURIComponent(new URL(event.senderFrame.url).pathname) === settingsEntry; } catch { return false; } })());
-  ipcMain.handle('desktop:restart-local', async (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return startLocal(); });
+  const isConnectedMainFrame = (event) => Boolean(state.mainWindow && event.sender === state.mainWindow.webContents && event.senderFrame?.isMainFrame !== false && state.currentTarget && (() => { try { return new URL(event.senderFrame?.url || '').origin === state.currentTarget; } catch { return false; } })());
+  ipcMain.handle('desktop:restart-local', async (event) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return startLocal(); });
   ipcMain.handle('desktop:open-settings', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); createSettingsWindow(); });
 
-  ipcMain.handle('desktop:get-settings', (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return { status: currentStatus(), profiles: state.connection.listProfiles(), settings: state.connection.store.getSettings(), local: state.local?.getStatus() || null }; });
-  ipcMain.handle('desktop:save-settings', (event, settings) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return state.connection.store.saveSettings(settings); });
-  ipcMain.handle('desktop:rename-profile', (event, id, name) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); return state.connection.store.rename(id, name); });
-  ipcMain.handle('desktop:delete-profile', (event, id) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); if (state.localProfile?.id === id || state.connection.activeProfile()?.id === id) fail('不能删除当前连接 profile'); return state.connection.store.remove(id); });
-  ipcMain.handle('desktop:stop-local', async (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); if (state.local) await state.local.stop(); state.local = null; state.mode = 'local'; return currentStatus(); });
-  ipcMain.handle('desktop:get-diagnostics', (event) => { if (!isSettingsFrame(event)) fail('IPC 来源不可信'); const active = state.connection.activeProfile(); return { app: 'CrewRouter Desktop', version: electron.app.getVersion(), runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, mode: state.mode, target: state.currentTarget, profileId: active?.id || null, localServer: Boolean(state.local?.getStatus().ready) }; });
-  ipcMain.handle('desktop:quit', (event) => { if (!isRendererFrame(event)) fail('IPC 来源不可信'); electron.app.quit(); });
+  ipcMain.handle('desktop:get-settings', (event) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return { status: currentStatus(), profiles: state.connection.listProfiles(), settings: state.connection.store.getSettings(), local: state.local?.getStatus() || null }; });
+  ipcMain.handle('desktop:save-settings', (event, settings) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return state.connection.store.saveSettings(settings); });
+  ipcMain.handle('desktop:rename-profile', (event, id, name) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); return state.connection.store.rename(id, name); });
+  ipcMain.handle('desktop:delete-profile', (event, id) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); if (state.localProfile?.id === id || state.connection.activeProfile()?.id === id) fail('不能删除当前连接 profile'); return state.connection.store.remove(id); });
+  ipcMain.handle('desktop:stop-local', async (event) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); if (state.local) await state.local.stop(); state.local = null; state.mode = 'local'; return currentStatus(); });
+  ipcMain.handle('desktop:get-diagnostics', (event) => { if (!isSettingsFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); const active = state.connection.activeProfile(); return { app: 'CrewRouter Desktop', version: electron.app.getVersion(), runtime: state.instance?.runtime || null, edition: state.instance?.edition || null, mode: state.mode, target: state.currentTarget, profileId: active?.id || null, localServer: Boolean(state.local?.getStatus().ready) }; });
+  ipcMain.handle('desktop:quit', (event) => { if (!isRendererFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); electron.app.quit(); });
+  ipcMain.handle('desktop:restart-app', (event) => { if (!isRendererFrame(event) && !isConnectedMainFrame(event)) fail('IPC 来源不可信'); electron.app.relaunch(); electron.app.exit(0); });
 }
 function bootstrap() {
   const gotLock = electron.app.requestSingleInstanceLock();
@@ -202,7 +273,11 @@ function bootstrap() {
     const activeProfile = state.connection.activeProfile();
     if (activeProfile?.mode === 'local' && activeProfile.displayName) state.localProfile = activeProfile;
     createWindow();
-    if (activeProfile?.mode === 'local' && activeProfile.displayName && state.connection.store.getSettings().autoConnect) startLocal(activeProfile.displayName).catch((error) => sendStatus({ error: `本地服务启动失败：${error.message}` }));
+    if (activeProfile?.mode === 'local' && activeProfile.displayName && state.connection.store.getSettings().autoConnect) {
+      startLocal(activeProfile.displayName).catch((error) => sendStatus({ error: `本地服务启动失败：${error.message}` }));
+    } else if (activeProfile?.mode === 'remote' && state.connection.store.getSettings().autoConnect) {
+      connect(activeProfile.url, { id: activeProfile.id, name: activeProfile.name, displayName: activeProfile.displayName, officialTarget: true }).catch((error) => sendStatus({ error: `远程实例自动连接失败：${error.message}` }));
+    }
     const protocolArg = process.argv.find((value) => value.startsWith('crewrouter://'));
     if (protocolArg) handleProtocol(protocolArg);
   });
